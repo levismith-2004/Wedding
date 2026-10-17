@@ -58,6 +58,7 @@ form.rsvp{display:grid;gap:26px;max-width:560px}
 .rsvp label{display:block;font-size:15px;margin-bottom:2px}
 .rsvp .radio{display:flex;align-items:center;gap:10px;font-size:18px;margin:0;cursor:pointer}
 .rsvp .radio input{width:auto}
+.rsvp .names{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .rsvp textarea{min-height:90px;resize:vertical}
 .ok{color:var(--euc);font-weight:500}
 .reg{list-style:none;padding:0;max-width:820px}
@@ -71,6 +72,8 @@ form.rsvp{display:grid;gap:26px;max-width:560px}
 .reg .claimed button{border-color:transparent;text-decoration:underline;padding-inline:8px}
 #adminTable{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
 #adminTable th,#adminTable td{text-align:left;padding:10px 12px 10px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.adm{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px 18px;align-items:end;margin-bottom:28px}
+.lnk,.reg button.lnk{background:none;color:var(--ink);border:0;border-radius:0;padding:4px 8px;text-decoration:underline}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 @media (prefers-reduced-motion:reduce){.gate h1{animation:none}html{scroll-behavior:auto}}
 </style>
@@ -103,11 +106,14 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
     <section id="rsvp">
       <h2>RSVP</h2>
       <form class="rsvp" id="rsvpForm">
+        <div class="names">
+          <div><label for="first">First name</label><input id="first" autocomplete="given-name" maxlength="80" required></div>
+          <div><label for="last">Last name</label><input id="last" autocomplete="family-name" maxlength="80" required></div>
+        </div>
         <fieldset>
           <label class="radio"><input type="radio" name="att" value="yes" required> Joyfully accepts</label>
           <label class="radio"><input type="radio" name="att" value="no"> Regretfully declines</label>
         </fieldset>
-        <div id="countWrap"><label for="count">How many of you are coming?</label><select id="count"></select></div>
         <div><label for="diet">Dietary requirements</label><input id="diet" maxlength="500"></div>
         <div><label for="msg">A message for us</label><textarea id="msg" maxlength="1000"></textarea></div>
         <div><button type="submit" id="rsvpBtn">Send RSVP</button> <span class="ok" id="rsvpOk" role="status"></span></div>
@@ -123,14 +129,36 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
     <section id="admin">
       <h2>Guest list</h2>
       <p class="story" id="adminTotals" style="margin-bottom:24px"></p>
+      <form class="adm" id="rForm">
+        <input type="hidden" id="rId">
+        <input id="rFirst" placeholder="First name" aria-label="First name" required>
+        <input id="rLast" placeholder="Last name" aria-label="Last name" required>
+        <select id="rAtt" aria-label="Reply"><option value="yes">Coming</option><option value="no">Declined</option></select>
+        <input id="rDiet" placeholder="Dietary" aria-label="Dietary">
+        <input id="rMsg" placeholder="Message" aria-label="Message">
+        <div><button type="submit" id="rSave">Add reply</button> <button type="button" class="lnk" id="rCancel" hidden>Cancel</button></div>
+      </form>
       <div style="overflow-x:auto"><table id="adminTable"></table></div>
+      <h2 style="margin-top:80px">Edit registry</h2>
+      <form class="adm" id="gForm">
+        <input type="hidden" id="gId">
+        <input id="gName" placeholder="Item name" aria-label="Item name" required>
+        <input id="gUrl" type="url" placeholder="https://link-to-item" aria-label="Link">
+        <input id="gPrice" placeholder="Price" aria-label="Price">
+        <input id="gNote" placeholder="Note (size, colour)" aria-label="Note">
+        <div><button type="submit" id="gSave">Add item</button> <button type="button" class="lnk" id="gCancel" hidden>Cancel</button></div>
+      </form>
+      <ul class="reg" id="adminReg"></ul>
     </section>
   </div>
   <footer id="footer"></footer>
 </main>
 
 <script>
-/* ============ EDIT THIS BLOCK ============ */
+/* ============ EDIT THIS BLOCK ============
+   Only SUPABASE_URL and SUPABASE_ANON_KEY must be filled in here.
+   Everything else below is a fallback: once you've run site-settings-setup.sql, the live
+   names, date, story, details and photos come from the site_settings table in Supabase. */
 const CONFIG = {
   SUPABASE_URL: "https://nuhxefrgldpxlbxshhfg.supabase.co",       // e.g. https://abcdxyz.supabase.co  (leave blank to preview with demo data; code: DEMO)
   SUPABASE_ANON_KEY: "sb_publishable_ME2xncbwLbOAplsJQcaGzg_D6_n_Aiw",  // the public "anon" key from Supabase > Settings > API
@@ -158,59 +186,89 @@ const mine = new Set(JSON.parse(sessionStorageSafe("get") || "[]"));
 function sessionStorageSafe(op, v){ try { return op==="get" ? localStorage.getItem("claimed") : localStorage.setItem("claimed", v); } catch(e){ return null; } }
 
 /* ---- API: all access goes through Supabase RPC functions (see setup.sql) ---- */
-const demoDB = { items: [
+const demoDB = { rsvps: [
+  {id:1,first_name:"Jess",last_name:"Carter",attending:true,dietary:"Vegetarian",message:"Can’t wait!"},
+  {id:2,first_name:"Priya",last_name:"Shah",attending:false,dietary:"",message:"Sorry, we’ll be overseas."}], items: [
   {id:1,name:"Linen sheet set",url:"https://example.com",price:"$220",note:"Sage, queen",claimed:false},
   {id:2,name:"Cast iron casserole",url:"https://example.com",price:"$180",note:"",claimed:true},
   {id:3,name:"Honeymoon fund",url:"https://example.com",price:"Any amount",note:"",claimed:false}]};
 async function rpc(fn, args){
   if (DEMO){
-    if (fn==="get_guest"){
+    if (fn==="get_settings") return null;
+    if (fn==="check_code"){
       const c = args.p_code.trim().toUpperCase();
-      if (c==="DEMO") return {name:"Demo Guest",party_max:3,attending:null};
-      if (c==="ADMIN") return {name:"Admin",party_max:1,attending:null,is_admin:true};
+      if (c==="DEMO") return {is_admin:false};
+      if (c==="ADMIN") return {is_admin:true};
       return null;
     }
-    if (fn==="admin_rsvps") return [
-      {name:"Jess & Tom",code:"K7M2QX",attending:true,party_count:2,party_max:2,dietary:"Vegetarian",message:"Can’t wait!"},
-      {name:"Priya",code:"P4N8ZD",attending:false,party_count:0,party_max:1,dietary:"",message:"Sorry, we’ll be overseas."},
-      {name:"The Hendersons",code:"H2V9LB",attending:null,party_count:null,party_max:4,dietary:"",message:""}];
+    if (fn==="admin_rsvps") return demoDB.rsvps;
+    if (fn==="admin_save_rsvp"){
+      const row = {id:args.p_id||Date.now(), first_name:args.p_first, last_name:args.p_last, attending:args.p_attending, dietary:args.p_dietary, message:args.p_message};
+      const i = demoDB.rsvps.findIndex(r=>r.id===args.p_id);
+      if (i>=0) demoDB.rsvps[i]=row; else demoDB.rsvps.push(row);
+      return true;
+    }
+    if (fn==="admin_delete_rsvp"){ demoDB.rsvps = demoDB.rsvps.filter(r=>r.id!==args.p_id); return true; }
+    if (fn==="admin_save_item"){
+      if (args.p_id) Object.assign(demoDB.items.find(i=>i.id===args.p_id), {name:args.p_name,url:args.p_url,price:args.p_price,note:args.p_note});
+      else demoDB.items.push({id:Date.now(),name:args.p_name,url:args.p_url,price:args.p_price,note:args.p_note,claimed:false});
+      return true;
+    }
+    if (fn==="admin_delete_item"){ demoDB.items = demoDB.items.filter(i=>i.id!==args.p_id); return true; }
     if (fn==="submit_rsvp") return true;
     if (fn==="get_registry") return demoDB.items;
     if (fn==="claim_item"){ demoDB.items.find(i=>i.id===args.p_id).claimed=args.p_claim; return true; }
   }
   const r = await fetch(CONFIG.SUPABASE_URL + "/rest/v1/rpc/" + fn, {
     method:"POST",
-    headers:{"Content-Type":"application/json", apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:"Bearer "+CONFIG.SUPABASE_ANON_KEY},
+    headers:Object.assign({"Content-Type":"application/json", apikey:CONFIG.SUPABASE_ANON_KEY}, CONFIG.SUPABASE_ANON_KEY.startsWith("eyJ") ? {Authorization:"Bearer "+CONFIG.SUPABASE_ANON_KEY} : {}),
     body: JSON.stringify(args)
   });
   if (!r.ok) throw new Error("Request failed");
   return r.json();
 }
 
-/* ---- Static content ---- */
-const names = CONFIG.names.join(" & ");
-document.title = names + " | Wedding";
-$("gateNames").innerHTML = CONFIG.names[0] + " <em>&amp;</em> " + CONFIG.names[1];
-$("gateWhen").textContent = CONFIG.date + ", " + CONFIG.place;
-$("navNames").textContent = names;
-if (CONFIG.heroPhoto) document.documentElement.style.setProperty("--hero", "url('" + CONFIG.heroPhoto + "')");
-$("storyText").textContent = CONFIG.story;
-$("regIntro").textContent = CONFIG.registryIntro;
-$("footer").textContent = names + " · " + CONFIG.date;
-CONFIG.details.forEach(d => {
-  const el = document.createElement("div");
-  el.innerHTML = "<h3></h3><p></p>";
-  el.firstChild.textContent = d.title; el.lastChild.textContent = d.body;
-  $("detailsGrid").append(el);
-});
+/* ---- Content: loaded from Supabase site_settings, with CONFIG as the fallback ---- */
+const S = { name_one:CONFIG.names[0], name_two:CONFIG.names[1], wedding_date:CONFIG.date, place:CONFIG.place,
+  hero_photo:CONFIG.heroPhoto, story:CONFIG.story, registry_intro:CONFIG.registryIntro, details:CONFIG.details, photos:CONFIG.photos };
+async function fetchSettings(code){
+  try {
+    const r = await rpc("get_settings", {p_code:code});
+    if (r) Object.keys(r).forEach(k => { if (r[k] !== null && r[k] !== "") S[k] = r[k]; });
+  } catch(e){}
+}
+function applyGate(){
+  document.title = S.name_one + " & " + S.name_two + " | Wedding";
+  const h = $("gateNames"); h.textContent = S.name_one + " ";
+  const em = document.createElement("em"); em.textContent = "&"; h.append(em, " " + S.name_two);
+  $("gateWhen").textContent = S.wedding_date + ", " + S.place;
+  if (S.hero_photo) document.documentElement.style.setProperty("--hero", 'url("' + encodeURI(S.hero_photo) + '")');
+}
 const tones = ["#A8C1BA","#D9D0C1","#5B7264","#C5D3CC","#B9AE9B","#8FA89B"], ratios = ["4/5","1/1","3/4","4/3","4/5","1/1"];
-const gal = CONFIG.photos.length ? CONFIG.photos : tones.map((c,i)=>({ph:true,c,r:ratios[i]}));
-gal.forEach(p => {
-  const f = document.createElement("figure");
-  if (p.ph){ f.innerHTML = '<div class="ph" role="img" aria-label="Photo placeholder"></div>'; f.firstChild.style.cssText = "--c:"+p.c+";--r:"+p.r; }
-  else { const i = new Image(); i.src = p.src; i.alt = p.alt || ""; i.loading = "lazy"; f.append(i); }
-  $("galleryGrid").append(f);
-});
+function applySite(){
+  const names = S.name_one + " & " + S.name_two;
+  $("navNames").textContent = names;
+  $("storyText").textContent = S.story || "";
+  $("regIntro").textContent = S.registry_intro || "";
+  $("footer").textContent = names + " · " + S.wedding_date;
+  $("detailsGrid").innerHTML = "";
+  (S.details || []).forEach(d => {
+    const el = document.createElement("div");
+    el.innerHTML = "<h3></h3><p></p>";
+    el.firstChild.textContent = d.title || ""; el.lastChild.textContent = d.body || "";
+    $("detailsGrid").append(el);
+  });
+  $("galleryGrid").innerHTML = "";
+  const gal = (S.photos && S.photos.length) ? S.photos : tones.map((c,i)=>({ph:true,c,r:ratios[i]}));
+  gal.forEach(p => {
+    const f = document.createElement("figure");
+    if (p.ph){ f.innerHTML = '<div class="ph" role="img" aria-label="Photo placeholder"></div>'; f.firstChild.style.cssText = "--c:"+p.c+";--r:"+p.r; }
+    else { const i = new Image(); i.src = p.src; i.alt = p.alt || ""; i.loading = "lazy"; f.append(i); }
+    $("galleryGrid").append(f);
+  });
+}
+applyGate();
+fetchSettings(null).then(applyGate);
 
 /* ---- Gate ---- */
 $("codeForm").addEventListener("submit", async e => {
@@ -218,7 +276,7 @@ $("codeForm").addEventListener("submit", async e => {
   $("codeErr").textContent = ""; $("codeBtn").disabled = true;
   try {
     const code = $("code").value.trim().toUpperCase();
-    const g = await rpc("get_guest", {p_code: code});
+    const g = await rpc("check_code", {p_code: code});
     if (!g){ $("codeErr").textContent = "That code didn’t work. Check your invitation and try again."; return; }
     CODE = code; GUEST = g; await unlock();
   } catch(err){ $("codeErr").textContent = "Something went wrong. Please try again in a moment."; }
@@ -226,43 +284,94 @@ $("codeForm").addEventListener("submit", async e => {
 });
 
 async function unlock(){
+  await fetchSettings(CODE); applyGate(); applySite();
   $("gate").hidden = true; $("site").hidden = false; scrollTo(0,0);
-  $("welcome").textContent = "Welcome, " + GUEST.name + ". We’re so glad you’re here.";
-  const sel = $("count"); sel.innerHTML = "";
-  for (let i=1;i<=GUEST.party_max;i++) sel.add(new Option(i===1?"Just me":i+" of us", i));
-  if (GUEST.attending !== null && GUEST.attending !== undefined){
-    document.querySelector('input[name=att][value='+(GUEST.attending?"yes":"no")+']').checked = true;
-    if (GUEST.party_count) sel.value = GUEST.party_count;
-    $("diet").value = GUEST.dietary || ""; $("msg").value = GUEST.message || "";
-  }
-  toggleCount(); loadRegistry();
+  $("welcome").textContent = "Welcome, and thank you for being part of our day.";
+  loadRegistry();
   if (GUEST.is_admin) loadAdmin();
 }
+const linkBtn = (label, fn) => { const b = document.createElement("button"); b.type="button"; b.className="lnk"; b.textContent=label; b.onclick=fn; return b; };
 async function loadAdmin(){
   $("adminWrap").hidden = false;
   let rows = [];
   try { rows = await rpc("admin_rsvps", {p_code:CODE}); } catch(e){}
-  const yes = rows.filter(r=>r.attending===true), no = rows.filter(r=>r.attending===false);
-  const heads = yes.reduce((n,r)=>n+(r.party_count||0),0);
-  $("adminTotals").textContent = heads + " guests coming from " + yes.length + " invitations. " + no.length + " declined. " + (rows.length-yes.length-no.length) + " haven’t replied.";
-  const t = $("adminTable"); t.innerHTML = "<tr><th>Name</th><th>Code</th><th>Reply</th><th>Coming</th><th>Dietary</th><th>Message</th></tr>";
+  const yes = rows.filter(r=>r.attending===true).length, no = rows.filter(r=>r.attending===false).length;
+  $("adminTotals").textContent = yes + " coming, " + no + " declined. " + rows.length + " replies so far.";
+  const t = $("adminTable"); t.innerHTML = "<tr><th>Name</th><th>Reply</th><th>Dietary</th><th>Message</th><th></th></tr>";
   rows.forEach(r => {
     const tr = t.insertRow();
-    [r.name, r.code, r.attending===null||r.attending===undefined ? "No reply" : r.attending ? "Yes" : "No",
-     r.attending ? r.party_count + " of " + r.party_max : "", r.dietary||"", r.message||""]
-      .forEach(v => { tr.insertCell().textContent = v; });
+    [r.first_name + " " + r.last_name, r.attending ? "Yes" : "No", r.dietary||"", r.message||""].forEach(v => { tr.insertCell().textContent = v; });
+    const td = tr.insertCell(); td.style.whiteSpace = "nowrap";
+    td.append(linkBtn("Edit", () => editReply(r)), linkBtn("Delete", () => delReply(r)));
+  });
+  loadAdminReg();
+}
+function editReply(r){
+  $("rId").value = r.id; $("rFirst").value = r.first_name; $("rLast").value = r.last_name;
+  $("rAtt").value = r.attending ? "yes" : "no"; $("rDiet").value = r.dietary||""; $("rMsg").value = r.message||"";
+  $("rSave").textContent = "Save changes"; $("rCancel").hidden = false; $("rForm").scrollIntoView({block:"center"});
+}
+function resetReply(){ $("rForm").reset(); $("rId").value = ""; $("rSave").textContent = "Add reply"; $("rCancel").hidden = true; }
+$("rCancel").onclick = resetReply;
+$("rForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("rSave").disabled = true;
+  try {
+    const ok = await rpc("admin_save_rsvp", {p_code:CODE, p_id:$("rId").value ? +$("rId").value : null, p_first:$("rFirst").value.trim(), p_last:$("rLast").value.trim(), p_attending:$("rAtt").value==="yes", p_dietary:$("rDiet").value, p_message:$("rMsg").value});
+    if (!ok) throw new Error();
+    resetReply(); await loadAdmin();
+  } catch(err){ alert("Couldn’t save. Check the name isn’t already on the list."); }
+  finally { $("rSave").disabled = false; }
+});
+async function delReply(r){
+  if (!confirm("Delete the reply from " + r.first_name + " " + r.last_name + "?")) return;
+  try { await rpc("admin_delete_rsvp", {p_code:CODE, p_id:r.id}); } catch(e){ alert("Couldn’t delete."); }
+  loadAdmin();
+}
+
+async function loadAdminReg(){
+  let items = [];
+  try { items = await rpc("get_registry", {p_code:CODE}); } catch(e){}
+  const ul = $("adminReg"); ul.innerHTML = "";
+  if (!items.length){ ul.innerHTML = "<li>No items yet. Add your first one above.</li>"; return; }
+  items.forEach(it => {
+    const li = document.createElement("li");
+    li.innerHTML = "<div><h3></h3><small></small></div><div></div>";
+    li.querySelector("h3").textContent = it.name;
+    li.querySelector("small").textContent = [it.price, it.note, it.url].filter(Boolean).join(" · ");
+    li.lastChild.append(linkBtn("Edit", () => editItem(it)), linkBtn("Delete", () => delItem(it)));
+    ul.append(li);
   });
 }
-const toggleCount = () => { $("countWrap").hidden = document.querySelector("input[name=att]:checked")?.value === "no"; };
-document.querySelectorAll("input[name=att]").forEach(r => r.addEventListener("change", toggleCount));
+function editItem(it){
+  $("gId").value = it.id; $("gName").value = it.name; $("gUrl").value = it.url||""; $("gPrice").value = it.price||""; $("gNote").value = it.note||"";
+  $("gSave").textContent = "Save changes"; $("gCancel").hidden = false; $("gForm").scrollIntoView({block:"center"});
+}
+function resetItem(){ $("gForm").reset(); $("gId").value = ""; $("gSave").textContent = "Add item"; $("gCancel").hidden = true; }
+$("gCancel").onclick = resetItem;
+$("gForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("gSave").disabled = true;
+  try {
+    const ok = await rpc("admin_save_item", {p_code:CODE, p_id:$("gId").value ? +$("gId").value : null, p_name:$("gName").value.trim(), p_url:$("gUrl").value.trim(), p_price:$("gPrice").value, p_note:$("gNote").value});
+    if (!ok) throw new Error();
+    resetItem(); await loadAdminReg(); loadRegistry();
+  } catch(err){ alert("Couldn’t save the item."); }
+  finally { $("gSave").disabled = false; }
+});
+async function delItem(it){
+  if (!confirm("Delete “" + it.name + "” from the registry?")) return;
+  try { await rpc("admin_delete_item", {p_code:CODE, p_id:it.id}); } catch(e){ alert("Couldn’t delete."); }
+  loadAdminReg(); loadRegistry();
+}
 
 /* ---- RSVP ---- */
 $("rsvpForm").addEventListener("submit", async e => {
   e.preventDefault(); $("rsvpBtn").disabled = true; $("rsvpOk").textContent = "";
   try {
     const yes = document.querySelector("input[name=att]:checked").value === "yes";
-    await rpc("submit_rsvp", {p_code:CODE, p_attending:yes, p_count: yes ? +$("count").value : 0, p_dietary:$("diet").value, p_message:$("msg").value});
-    $("rsvpOk").textContent = yes ? "Thank you. We can’t wait to celebrate with you." : "Thank you for letting us know. We’ll miss you.";
+    const first = $("first").value.trim();
+    const ok = await rpc("submit_rsvp", {p_code:CODE, p_first:first, p_last:$("last").value.trim(), p_attending:yes, p_dietary:$("diet").value, p_message:$("msg").value});
+    if (!ok) throw new Error("rejected");
+    $("rsvpOk").textContent = (yes ? "Thanks, " + first + ". We can’t wait to celebrate with you." : "Thanks for letting us know, " + first + ". We’ll miss you.") + " To reply for someone else, type their name above and send again.";
   } catch(err){ $("rsvpOk").textContent = "That didn’t send. Please try again."; }
   finally { $("rsvpBtn").disabled = false; }
 });
