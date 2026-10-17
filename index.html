@@ -69,6 +69,8 @@ form.rsvp{display:grid;gap:26px;max-width:560px}
 .reg .claimed{opacity:.6}
 .reg button{background:transparent;color:var(--ink);border:1px solid var(--ink)}
 .reg .claimed button{border-color:transparent;text-decoration:underline;padding-inline:8px}
+#adminTable{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
+#adminTable th,#adminTable td{text-align:left;padding:10px 12px 10px 0;border-bottom:1px solid var(--line);vertical-align:top}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 @media (prefers-reduced-motion:reduce){.gate h1{animation:none}html{scroll-behavior:auto}}
 </style>
@@ -117,6 +119,13 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
     <p class="story" style="margin-bottom:32px" id="regIntro"></p>
     <ul class="reg" id="regList"></ul>
   </section>
+  <div class="band" id="adminWrap" hidden>
+    <section id="admin">
+      <h2>Guest list</h2>
+      <p class="story" id="adminTotals" style="margin-bottom:24px"></p>
+      <div style="overflow-x:auto"><table id="adminTable"></table></div>
+    </section>
+  </div>
   <footer id="footer"></footer>
 </main>
 
@@ -155,7 +164,16 @@ const demoDB = { items: [
   {id:3,name:"Honeymoon fund",url:"https://example.com",price:"Any amount",note:"",claimed:false}]};
 async function rpc(fn, args){
   if (DEMO){
-    if (fn==="get_guest") return args.p_code.trim().toUpperCase()==="DEMO" ? {name:"Demo Guest",party_max:3,attending:null} : null;
+    if (fn==="get_guest"){
+      const c = args.p_code.trim().toUpperCase();
+      if (c==="DEMO") return {name:"Demo Guest",party_max:3,attending:null};
+      if (c==="ADMIN") return {name:"Admin",party_max:1,attending:null,is_admin:true};
+      return null;
+    }
+    if (fn==="admin_rsvps") return [
+      {name:"Jess & Tom",code:"K7M2QX",attending:true,party_count:2,party_max:2,dietary:"Vegetarian",message:"Can’t wait!"},
+      {name:"Priya",code:"P4N8ZD",attending:false,party_count:0,party_max:1,dietary:"",message:"Sorry, we’ll be overseas."},
+      {name:"The Hendersons",code:"H2V9LB",attending:null,party_count:null,party_max:4,dietary:"",message:""}];
     if (fn==="submit_rsvp") return true;
     if (fn==="get_registry") return demoDB.items;
     if (fn==="claim_item"){ demoDB.items.find(i=>i.id===args.p_id).claimed=args.p_claim; return true; }
@@ -218,6 +236,22 @@ async function unlock(){
     $("diet").value = GUEST.dietary || ""; $("msg").value = GUEST.message || "";
   }
   toggleCount(); loadRegistry();
+  if (GUEST.is_admin) loadAdmin();
+}
+async function loadAdmin(){
+  $("adminWrap").hidden = false;
+  let rows = [];
+  try { rows = await rpc("admin_rsvps", {p_code:CODE}); } catch(e){}
+  const yes = rows.filter(r=>r.attending===true), no = rows.filter(r=>r.attending===false);
+  const heads = yes.reduce((n,r)=>n+(r.party_count||0),0);
+  $("adminTotals").textContent = heads + " guests coming from " + yes.length + " invitations. " + no.length + " declined. " + (rows.length-yes.length-no.length) + " haven’t replied.";
+  const t = $("adminTable"); t.innerHTML = "<tr><th>Name</th><th>Code</th><th>Reply</th><th>Coming</th><th>Dietary</th><th>Message</th></tr>";
+  rows.forEach(r => {
+    const tr = t.insertRow();
+    [r.name, r.code, r.attending===null||r.attending===undefined ? "No reply" : r.attending ? "Yes" : "No",
+     r.attending ? r.party_count + " of " + r.party_max : "", r.dietary||"", r.message||""]
+      .forEach(v => { tr.insertCell().textContent = v; });
+  });
 }
 const toggleCount = () => { $("countWrap").hidden = document.querySelector("input[name=att]:checked")?.value === "no"; };
 document.querySelectorAll("input[name=att]").forEach(r => r.addEventListener("change", toggleCount));
