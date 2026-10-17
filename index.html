@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Our Wedding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--chalk:#F2F4F0;--ink:#1D2A24;--euc:#5B7264;--sea:#A8C1BA;--sand:#D9D0C1;--line:rgba(29,42,36,.18)}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--chalk);color:var(--ink);font:17px/1.6 "DM Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Instrument Serif",Georgia,serif;font-weight:400;line-height:1}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--euc);outline-offset:3px}
+[hidden]{display:none!important}
+
+/* Gate */
+.gate{min-height:100vh;min-height:100svh;display:grid;align-content:end;padding:clamp(24px,5vw,72px);color:#fff;
+ background:linear-gradient(180deg,rgba(29,42,36,.15),rgba(29,42,36,.78)),var(--hero,linear-gradient(135deg,#5B7264,#A8C1BA 55%,#D9D0C1)) center/cover}
+.gate h1{font-size:clamp(64px,13vw,184px);letter-spacing:-.02em;animation:rise 1.2s ease both}
+.gate h1 em{font-style:italic;opacity:.8}
+.gate .when{font-size:clamp(18px,2.2vw,24px);margin:18px 0 36px}
+.gate form{display:flex;gap:10px;flex-wrap:wrap;max-width:520px}
+.gate label{flex-basis:100%;font-size:15px;opacity:.9}
+input,select,textarea{font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px solid var(--ink);padding:10px 2px;width:100%;border-radius:0}
+.gate input{color:#fff;border-color:#fff;flex:1 1 220px;width:auto;font-size:20px;letter-spacing:.08em;text-transform:uppercase}
+.gate input::placeholder{color:rgba(255,255,255,.6);letter-spacing:0;text-transform:none}
+button,.btn{font:inherit;font-weight:500;background:var(--ink);color:var(--chalk);border:0;padding:12px 26px;cursor:pointer;border-radius:999px;text-decoration:none;display:inline-block}
+.gate button{background:#fff;color:var(--ink)}
+button:disabled{opacity:.5;cursor:default}
+.err{color:#ffd9d0;flex-basis:100%;min-height:1.4em;font-size:15px}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
+/* Site */
+nav{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px clamp(20px,5vw,72px);background:rgba(242,244,240,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav b{font:400 24px "Instrument Serif",serif}
+nav div{display:flex;gap:22px;flex-wrap:wrap}
+nav a{text-decoration:none;font-size:15px}
+nav a:hover{text-decoration:underline}
+section{padding:clamp(56px,9vw,120px) clamp(20px,5vw,72px);max-width:1180px;margin:auto}
+h2{font-size:clamp(40px,6vw,76px);margin-bottom:36px}
+.welcome{font-size:clamp(22px,3vw,34px);font-family:"Instrument Serif",serif;max-width:22ch}
+.story{max-width:62ch;font-size:19px}
+.details{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:40px 56px}
+.details h3{font-size:30px;margin-bottom:8px}
+.details p{white-space:pre-line}
+.gallery{columns:3 260px;column-gap:14px}
+.gallery figure{break-inside:avoid;margin:0 0 14px}
+.gallery img,.ph{display:block;width:100%;border-radius:2px}
+.ph{aspect-ratio:var(--r);background:var(--c)}
+.band{background:var(--sand)}
+.band>section{max-width:1180px}
+form.rsvp{display:grid;gap:26px;max-width:560px}
+.rsvp fieldset{border:0;padding:0;display:flex;gap:28px;flex-wrap:wrap}
+.rsvp label{display:block;font-size:15px;margin-bottom:2px}
+.rsvp .radio{display:flex;align-items:center;gap:10px;font-size:18px;margin:0;cursor:pointer}
+.rsvp .radio input{width:auto}
+.rsvp textarea{min-height:90px;resize:vertical}
+.ok{color:var(--euc);font-weight:500}
+.reg{list-style:none;padding:0;max-width:820px}
+.reg li{display:grid;grid-template-columns:1fr auto;gap:8px 24px;align-items:center;padding:22px 0;border-top:1px solid var(--line)}
+.reg li:last-child{border-bottom:1px solid var(--line)}
+.reg h3{font-size:28px}
+.reg small{display:block;opacity:.75;font-size:15px}
+.reg .claimed h3{text-decoration:line-through;text-decoration-thickness:1px}
+.reg .claimed{opacity:.6}
+.reg button{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.reg .claimed button{border-color:transparent;text-decoration:underline;padding-inline:8px}
+footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
+@media (prefers-reduced-motion:reduce){.gate h1{animation:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="gate" id="gate">
+  <h1 id="gateNames"></h1>
+  <p class="when" id="gateWhen"></p>
+  <form id="codeForm">
+    <label for="code">Enter the code from your invitation</label>
+    <input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your code" required>
+    <button type="submit" id="codeBtn">Open</button>
+    <p class="err" id="codeErr" role="alert"></p>
+  </form>
+</header>
+
+<main id="site" hidden>
+  <nav>
+    <b id="navNames"></b>
+    <div><a href="#details">Details</a><a href="#gallery">Photos</a><a href="#rsvp">RSVP</a><a href="#registry">Registry</a></div>
+  </nav>
+  <section>
+    <p class="welcome" id="welcome"></p>
+  </section>
+  <section id="story"><h2>Our story</h2><p class="story" id="storyText"></p></section>
+  <section id="details"><h2>The day</h2><div class="details" id="detailsGrid"></div></section>
+  <section id="gallery"><h2>Photos</h2><div class="gallery" id="galleryGrid"></div></section>
+  <div class="band">
+    <section id="rsvp">
+      <h2>RSVP</h2>
+      <form class="rsvp" id="rsvpForm">
+        <fieldset>
+          <label class="radio"><input type="radio" name="att" value="yes" required> Joyfully accepts</label>
+          <label class="radio"><input type="radio" name="att" value="no"> Regretfully declines</label>
+        </fieldset>
+        <div id="countWrap"><label for="count">How many of you are coming?</label><select id="count"></select></div>
+        <div><label for="diet">Dietary requirements</label><input id="diet" maxlength="500"></div>
+        <div><label for="msg">A message for us</label><textarea id="msg" maxlength="1000"></textarea></div>
+        <div><button type="submit" id="rsvpBtn">Send RSVP</button> <span class="ok" id="rsvpOk" role="status"></span></div>
+      </form>
+    </section>
+  </div>
+  <section id="registry">
+    <h2>Registry</h2>
+    <p class="story" style="margin-bottom:32px" id="regIntro"></p>
+    <ul class="reg" id="regList"></ul>
+  </section>
+  <footer id="footer"></footer>
+</main>
+
+<script>
+/* ============ EDIT THIS BLOCK ============ */
+const CONFIG = {
+  SUPABASE_URL: "",       // e.g. https://abcdxyz.supabase.co  (leave blank to preview with demo data; code: DEMO)
+  SUPABASE_ANON_KEY: "",  // the public "anon" key from Supabase > Settings > API
+  names: ["Alex", "Sam"],
+  date: "Saturday 14 November 2027",
+  place: "Gold Coast, Queensland",
+  heroPhoto: "",          // e.g. "images/hero.jpg"
+  story: "We met, we laughed, and we haven’t really stopped since. Write a few lines here about how it started and what the day means to you both.",
+  registryIntro: "Your company is the gift. If you’d like to give something, tick it off below so nobody doubles up. We can’t see who ticked what.",
+  details: [
+    { title: "Ceremony", body: "3:30 pm\nVenue name\nStreet address" },
+    { title: "Reception", body: "5:00 pm\nVenue name\nStreet address" },
+    { title: "Dress", body: "Garden formal. Think linen, soft colours, comfortable shoes for the lawn." },
+    { title: "Getting there", body: "Parking, shuttle times and nearby stays go here." }
+  ],
+  // Add your photos: put files in an "images" folder next to this file, then list them here.
+  photos: [ /* { src: "images/one.jpg", alt: "The two of us at the beach" } */ ]
+};
+/* ========================================= */
+
+const $ = id => document.getElementById(id);
+const DEMO = !CONFIG.SUPABASE_URL;
+let CODE = "", GUEST = null;
+const mine = new Set(JSON.parse(sessionStorageSafe("get") || "[]"));
+function sessionStorageSafe(op, v){ try { return op==="get" ? localStorage.getItem("claimed") : localStorage.setItem("claimed", v); } catch(e){ return null; } }
+
+/* ---- API: all access goes through Supabase RPC functions (see setup.sql) ---- */
+const demoDB = { items: [
+  {id:1,name:"Linen sheet set",url:"https://example.com",price:"$220",note:"Sage, queen",claimed:false},
+  {id:2,name:"Cast iron casserole",url:"https://example.com",price:"$180",note:"",claimed:true},
+  {id:3,name:"Honeymoon fund",url:"https://example.com",price:"Any amount",note:"",claimed:false}]};
+async function rpc(fn, args){
+  if (DEMO){
+    if (fn==="get_guest") return args.p_code.trim().toUpperCase()==="DEMO" ? {name:"Demo Guest",party_max:3,attending:null} : null;
+    if (fn==="submit_rsvp") return true;
+    if (fn==="get_registry") return demoDB.items;
+    if (fn==="claim_item"){ demoDB.items.find(i=>i.id===args.p_id).claimed=args.p_claim; return true; }
+  }
+  const r = await fetch(CONFIG.SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+    method:"POST",
+    headers:{"Content-Type":"application/json", apikey:CONFIG.SUPABASE_ANON_KEY, Authorization:"Bearer "+CONFIG.SUPABASE_ANON_KEY},
+    body: JSON.stringify(args)
+  });
+  if (!r.ok) throw new Error("Request failed");
+  return r.json();
+}
+
+/* ---- Static content ---- */
+const names = CONFIG.names.join(" & ");
+document.title = names + " | Wedding";
+$("gateNames").innerHTML = CONFIG.names[0] + " <em>&amp;</em> " + CONFIG.names[1];
+$("gateWhen").textContent = CONFIG.date + ", " + CONFIG.place;
+$("navNames").textContent = names;
+if (CONFIG.heroPhoto) document.documentElement.style.setProperty("--hero", "url('" + CONFIG.heroPhoto + "')");
+$("storyText").textContent = CONFIG.story;
+$("regIntro").textContent = CONFIG.registryIntro;
+$("footer").textContent = names + " · " + CONFIG.date;
+CONFIG.details.forEach(d => {
+  const el = document.createElement("div");
+  el.innerHTML = "<h3></h3><p></p>";
+  el.firstChild.textContent = d.title; el.lastChild.textContent = d.body;
+  $("detailsGrid").append(el);
+});
+const tones = ["#A8C1BA","#D9D0C1","#5B7264","#C5D3CC","#B9AE9B","#8FA89B"], ratios = ["4/5","1/1","3/4","4/3","4/5","1/1"];
+const gal = CONFIG.photos.length ? CONFIG.photos : tones.map((c,i)=>({ph:true,c,r:ratios[i]}));
+gal.forEach(p => {
+  const f = document.createElement("figure");
+  if (p.ph){ f.innerHTML = '<div class="ph" role="img" aria-label="Photo placeholder"></div>'; f.firstChild.style.cssText = "--c:"+p.c+";--r:"+p.r; }
+  else { const i = new Image(); i.src = p.src; i.alt = p.alt || ""; i.loading = "lazy"; f.append(i); }
+  $("galleryGrid").append(f);
+});
+
+/* ---- Gate ---- */
+$("codeForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("codeErr").textContent = ""; $("codeBtn").disabled = true;
+  try {
+    const code = $("code").value.trim().toUpperCase();
+    const g = await rpc("get_guest", {p_code: code});
+    if (!g){ $("codeErr").textContent = "That code didn’t work. Check your invitation and try again."; return; }
+    CODE = code; GUEST = g; await unlock();
+  } catch(err){ $("codeErr").textContent = "Something went wrong. Please try again in a moment."; }
+  finally { $("codeBtn").disabled = false; }
+});
+
+async function unlock(){
+  $("gate").hidden = true; $("site").hidden = false; scrollTo(0,0);
+  $("welcome").textContent = "Welcome, " + GUEST.name + ". We’re so glad you’re here.";
+  const sel = $("count"); sel.innerHTML = "";
+  for (let i=1;i<=GUEST.party_max;i++) sel.add(new Option(i===1?"Just me":i+" of us", i));
+  if (GUEST.attending !== null && GUEST.attending !== undefined){
+    document.querySelector('input[name=att][value='+(GUEST.attending?"yes":"no")+']').checked = true;
+    if (GUEST.party_count) sel.value = GUEST.party_count;
+    $("diet").value = GUEST.dietary || ""; $("msg").value = GUEST.message || "";
+  }
+  toggleCount(); loadRegistry();
+}
+const toggleCount = () => { $("countWrap").hidden = document.querySelector("input[name=att]:checked")?.value === "no"; };
+document.querySelectorAll("input[name=att]").forEach(r => r.addEventListener("change", toggleCount));
+
+/* ---- RSVP ---- */
+$("rsvpForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("rsvpBtn").disabled = true; $("rsvpOk").textContent = "";
+  try {
+    const yes = document.querySelector("input[name=att]:checked").value === "yes";
+    await rpc("submit_rsvp", {p_code:CODE, p_attending:yes, p_count: yes ? +$("count").value : 0, p_dietary:$("diet").value, p_message:$("msg").value});
+    $("rsvpOk").textContent = yes ? "Thank you. We can’t wait to celebrate with you." : "Thank you for letting us know. We’ll miss you.";
+  } catch(err){ $("rsvpOk").textContent = "That didn’t send. Please try again."; }
+  finally { $("rsvpBtn").disabled = false; }
+});
+
+/* ---- Registry ---- */
+async function loadRegistry(){
+  let items = [];
+  try { items = await rpc("get_registry", {p_code:CODE}); } catch(e){}
+  const ul = $("regList"); ul.innerHTML = "";
+  if (!items.length){ ul.innerHTML = "<li>Our registry will appear here soon.</li>"; return; }
+  items.forEach(it => {
+    const li = document.createElement("li");
+    const mineNow = mine.has(it.id);
+    if (it.claimed) li.className = "claimed";
+    li.innerHTML = '<div><h3></h3><small></small><a target="_blank" rel="noopener"></a></div>';
+    li.querySelector("h3").textContent = it.name;
+    li.querySelector("small").textContent = [it.price, it.note].filter(Boolean).join(" · ");
+    const a = li.querySelector("a");
+    if (it.url){ a.href = it.url; a.textContent = "View item"; } else a.remove();
+    const b = document.createElement("button");
+    if (!it.claimed){ b.textContent = "I’ll get this"; b.onclick = () => claim(it.id, true, b); }
+    else if (mineNow){ b.textContent = "You ticked this. Undo"; b.onclick = () => claim(it.id, false, b); }
+    else { b.textContent = "Already taken"; b.disabled = true; }
+    li.append(b); ul.append(li);
+  });
+}
+async function claim(id, on, btn){
+  btn.disabled = true;
+  try {
+    await rpc("claim_item", {p_code:CODE, p_id:id, p_claim:on});
+    on ? mine.add(id) : mine.delete(id);
+    sessionStorageSafe("set", JSON.stringify([...mine]));
+  } catch(e){}
+  loadRegistry();
+}
+</script>
+</body>
+</html>
