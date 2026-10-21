@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F2F4F0">
 <title>Our Wedding</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -113,6 +114,37 @@ nav a.on{text-decoration:underline;text-decoration-thickness:2px;text-underline-
 .blk{border-top:1px solid var(--line);padding:16px 0;display:grid;gap:10px}
 .blk textarea{border:1px solid var(--ink);padding:10px;width:100%}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
+html{scroll-padding-top:100px;-webkit-text-size-adjust:100%}
+button,a,input,select,textarea{touch-action:manipulation}
+.reg small{overflow-wrap:anywhere}
+.rsvp .radio input{width:22px;height:22px}
+@media (pointer:coarse){.lnk,.reg button.lnk{padding:11px 12px}.rsvp .radio{padding:6px 0}.suggest li{padding:15px 14px}}
+@media (max-width:640px){
+  nav{flex-direction:column;align-items:stretch;gap:2px;padding:max(10px,env(safe-area-inset-top)) 16px 4px}
+  nav b{font-size:22px}
+  nav div{position:relative;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  nav div::-webkit-scrollbar{display:none}
+  nav a{white-space:nowrap;padding:10px 0;flex:none}
+  .gate{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+  .banner{min-height:42svh}
+  section{padding-top:44px;padding-bottom:56px}
+  h2{margin-bottom:24px}
+  .rsvp .names,.names2{grid-template-columns:1fr}
+  .reg li{grid-template-columns:1fr}
+  .reg li>button,.reg li>div:last-child{justify-self:start}
+  .sw{grid-template-columns:1fr 56px 104px;gap:10px}
+  .adm{grid-template-columns:1fr}
+  #adminTable{min-width:0}
+  .tbl tr:first-child{display:none}
+  .tbl,.tbl tbody,.tbl tr,.tbl td{display:block}
+  .tbl tr{border-top:1px solid var(--line);padding:12px 0}
+  .tbl td{border:0;padding:3px 0}
+  .tbl td:empty{display:none}
+  .tbl td[data-label]::before{content:attr(data-label) ": ";opacity:.65;font-size:13px}
+  .tbl td:first-child{font-weight:500;font-size:18px}
+  .tbl td:first-child::before{display:none}
+  footer{padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+}
 @media (prefers-reduced-motion:reduce){body:not(.loading) .gate h1{animation:none}.gate{transition:none}html{scroll-behavior:auto}}
 </style>
 </head>
@@ -124,7 +156,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
   <p class="when" id="gateWhen"></p>
   <form id="codeForm">
     <label for="code">Enter the code from your invitation</label>
-    <input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your code" required>
+    <input id="code" autocomplete="off" autocapitalize="characters" autocorrect="off" enterkeyhint="go" spellcheck="false" placeholder="Your code" required>
     <button type="submit" id="codeBtn">Open</button>
     <p class="err" id="codeErr" role="alert"></p>
   </form>
@@ -147,7 +179,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
       <h2>RSVP</h2>
             <div class="find">
         <label for="nameSearch">Start typing your name</label>
-        <input id="nameSearch" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="nameList" aria-autocomplete="list">
+        <input id="nameSearch" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="nameList" aria-autocomplete="list">
         <ul class="suggest" id="nameList" role="listbox" hidden></ul>
         <p class="also" id="noMatch" hidden>We couldn’t find that name. Check the spelling, or <button type="button" class="lnk" id="openManual">enter it yourself</button>.</p>
       </div>
@@ -197,7 +229,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <textarea id="bulkText" aria-label="Names, one per line"></textarea>
         <button type="button" id="bulkBtn">Add names</button> <span class="ok" id="bulkMsg" role="status"></span>
       </details>
-      <div style="overflow-x:auto"><table id="invTable"></table></div>
+      <div style="overflow-x:auto"><table id="invTable" class="tbl"></table></div>
     </section>
     <section data-tab="replies">
       <h2>Replies</h2>
@@ -211,7 +243,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <input id="rMsg" placeholder="Message" aria-label="Message">
         <div><button type="submit" id="rSave">Add reply</button> <button type="button" class="lnk" id="rCancel" hidden>Cancel</button></div>
       </form>
-      <div style="overflow-x:auto"><table id="adminTable"></table></div>
+      <div style="overflow-x:auto"><table id="adminTable" class="tbl"></table></div>
     </section>
     <section data-tab="regedit">
       <h2>Edit registry</h2>
@@ -404,6 +436,7 @@ function applyTheme(c){
   const root = document.documentElement.style;
   THEME.forEach(([k,,v]) => { if (HEX.test(c[k]||"")) root.setProperty(v, c[k]); else root.removeProperty(v); });
   if (HEX.test(c.button||"")) root.setProperty("--btn-text", textOn(c.button)); else root.removeProperty("--btn-text");
+  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = HEX.test(c.bg||"") ? c.bg : "#F2F4F0";
 }
 function applyGate(){
   applyTheme(S.colors);
@@ -464,6 +497,8 @@ function showTab(name, push){
     const on = a.dataset.go === name; a.classList.toggle("on", on);
     if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
+  const act = document.querySelector("nav a.on");
+  if (act){ const row = act.parentElement; row.scrollTo({left: act.offsetLeft - (row.clientWidth - act.offsetWidth) / 2, behavior: "smooth"}); }
   if (push){ try { history.replaceState(null, "", "#" + name); } catch(e){} }
   scrollTo(0, 0);
 }
@@ -488,6 +523,10 @@ async function unlock(){
   loadRegistry();
   if (GUEST.is_admin) loadAdmin();
 }
+function labelTable(t){
+  const heads = [...t.rows[0].cells].map(c => c.textContent);
+  [...t.rows].slice(1).forEach(r => [...r.cells].forEach((c, i) => { if (heads[i]) c.dataset.label = heads[i]; }));
+}
 const linkBtn = (label, fn) => { const b = document.createElement("button"); b.type="button"; b.className="lnk"; b.textContent=label; b.onclick=fn; return b; };
 async function loadAdmin(){
   $("adminWrap").hidden = false;
@@ -504,7 +543,7 @@ async function loadAdmin(){
     td.append(linkBtn("Edit", () => editReply(r)), linkBtn("Delete", () => delReply(r)));
     if (r.listed === false) td.append(linkBtn("Match to guest", () => matchReply(r, td)));
   });
-  loadAdminReg(); buildAppearance(); loadInvitees(); buildText();
+  labelTable(t); loadAdminReg(); buildAppearance(); loadInvitees(); buildText();
 }
 async function matchReply(r, td){
   let c = [];
@@ -596,6 +635,7 @@ async function loadInvitees(){
     const td = tr.insertCell(); td.style.whiteSpace = "nowrap";
     td.append(linkBtn("Edit", () => editInvitee(r)), linkBtn("Delete", () => delInvitee(r)));
   });
+  labelTable(t);
 }
 function editInvitee(r){
   const mate = invRows.find(o => r.household_id && o.household_id === r.household_id && o.id !== r.id);
