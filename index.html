@@ -20,7 +20,11 @@ a{color:inherit}
 /* Gate */
 .gate{min-height:100vh;min-height:100svh;display:grid;align-content:end;padding:clamp(24px,5vw,72px);color:#fff;
  background:linear-gradient(180deg,rgba(29,42,36,.15),rgba(29,42,36,.78)),var(--hero,linear-gradient(135deg,var(--euc),color-mix(in srgb,var(--euc) 45%,var(--chalk)) 55%,var(--sand))) center/cover}
-.gate h1{font-size:clamp(64px,13vw,184px);letter-spacing:-.02em;animation:rise 1.2s ease both}
+.gate h1{font-size:clamp(64px,13vw,184px);letter-spacing:-.02em}
+body:not(.loading) .gate h1{animation:rise 1.1s ease both}
+body.loading{background:#fff}
+.gate{transition:opacity .45s ease}
+body.loading .gate{opacity:0;pointer-events:none}
 .gate h1 em{font-style:italic;opacity:.8}
 .gate .when{font-size:clamp(18px,2.2vw,24px);margin:18px 0 36px}
 .gate form{display:flex;gap:10px;flex-wrap:wrap;max-width:520px}
@@ -100,10 +104,11 @@ details.bulk textarea{border:1px solid var(--ink);padding:10px;width:100%;margin
 .banner .welcome{max-width:18ch;color:#fff;font-size:clamp(36px,7vw,84px);line-height:1}
 .banner .when{margin-top:18px;font-size:clamp(16px,2vw,22px)}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
-@media (prefers-reduced-motion:reduce){.gate h1{animation:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion:reduce){body:not(.loading) .gate h1{animation:none}.gate{transition:none}html{scroll-behavior:auto}}
 </style>
 </head>
-<body>
+<body class="loading">
+<noscript><style>body.loading .gate{opacity:1!important}</style></noscript>
 
 <header class="gate" id="gate">
   <h1 id="gateNames"></h1>
@@ -342,7 +347,10 @@ const S = { name_one:CONFIG.names[0], name_two:CONFIG.names[1], wedding_date:CON
 async function fetchSettings(code){
   try {
     const r = await rpc("get_settings", {p_code:code});
-    if (r) Object.keys(r).forEach(k => { if (r[k] !== null && r[k] !== "") S[k] = r[k]; });
+    if (r){
+      Object.keys(r).forEach(k => { if (r[k] !== null && r[k] !== "") S[k] = r[k]; });
+      S.hero_photo = r.hero_photo || CONFIG.heroPhoto; S.colors = r.colors || {};
+    }
   } catch(e){}
 }
 const THEME = [["bg","Background","--chalk","#F2F4F0"],["text","Text","--ink","#1D2A24"],["accent","Accent","--euc","#5B7264"],["band","Section band","--sand","#D9D0C1"],["button","Buttons","--btn","#1D2A24"]];
@@ -381,8 +389,29 @@ function applySite(){
     $("detailsGrid").append(el);
   });
 }
-applyGate();
-fetchSettings(null).then(applyGate);
+function readCache(){ try { return JSON.parse(localStorage.getItem("siteLook") || "null"); } catch(e){ return null; } }
+function writeCache(){
+  try { localStorage.setItem("siteLook", JSON.stringify({name_one:S.name_one, name_two:S.name_two, wedding_date:S.wedding_date, place:S.place, hero_photo:S.hero_photo, colors:S.colors})); } catch(e){}
+}
+function preload(src){
+  return new Promise(res => {
+    if (!src) return res();
+    const i = new Image(); i.onload = i.onerror = () => res(); i.src = src;
+    if (i.decode) i.decode().then(res, res);
+  });
+}
+(async function boot(){
+  try {
+    const c = readCache(); if (c) Object.assign(S, c);
+    applyGate();
+    const net = fetchSettings(null);
+    // first visit: wait for the saved settings (but never longer than 8 seconds)
+    if (!c) await Promise.race([net, new Promise(r => setTimeout(r, 8000))]);
+    applyGate();
+    await preload(S.hero_photo);
+    net.then(() => { writeCache(); applyGate(); });
+  } finally { document.body.classList.remove("loading"); }
+})();
 
 /* ---- Gate ---- */
 $("codeForm").addEventListener("submit", async e => {
@@ -585,7 +614,7 @@ function resizeImage(file, max){
       const c = document.createElement("canvas"); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
       let q = 0.82, out = c.toDataURL("image/jpeg", q);
-      while (out.length > 1200000 && q > 0.4){ q -= 0.1; out = c.toDataURL("image/jpeg", q); }
+      while (out.length > 650000 && q > 0.4){ q -= 0.1; out = c.toDataURL("image/jpeg", q); }
       out.length > 1400000 ? rej(new Error("too big")) : res(out);
     };
     img.onerror = () => rej(new Error("bad image")); img.src = url;
@@ -593,7 +622,7 @@ function resizeImage(file, max){
 }
 $("heroFile").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
-  try { const d = await resizeImage(f, 1800); heroPending = d; S.hero_photo = d; showHero(d); applyGate(); }
+  try { const d = await resizeImage(f, 1600); heroPending = d; S.hero_photo = d; showHero(d); applyGate(); }
   catch(err){ alert("Couldn’t use that image. Try a JPG or PNG."); }
 };
 $("heroRemove").onclick = () => { heroPending = ""; S.hero_photo = ""; showHero(""); applyGate(); $("heroFile").value = ""; };
