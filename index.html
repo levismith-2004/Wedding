@@ -75,8 +75,9 @@ form.rsvp{display:grid;gap:26px;max-width:560px}
 .reg .claimed{opacity:.6}
 .reg button{background:transparent;color:var(--btn,var(--ink));border:1px solid var(--btn,var(--ink))}
 .reg .claimed button{border-color:transparent;text-decoration:underline;padding-inline:8px}
-#adminTable{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
-#adminTable th,#adminTable td{text-align:left;padding:10px 12px 10px 0;border-bottom:1px solid var(--line);vertical-align:top}
+#adminTable{border-collapse:collapse;width:100%;min-width:760px;font-size:16px}
+#adminTable th,#adminTable td{text-align:left;padding:16px 20px 16px 0;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45;overflow-wrap:anywhere}
+#adminTable th{font-weight:500;font-size:14px;opacity:.7}
 .adm{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px 18px;align-items:end;margin-bottom:28px}
 .lnk,.reg button.lnk{background:none;color:var(--ink);border:0;border-radius:0;padding:4px 8px;text-decoration:underline}
 .swatches{display:grid;gap:16px;margin-bottom:32px}
@@ -113,6 +114,25 @@ nav a.on{text-decoration:underline;text-decoration-thickness:2px;text-underline-
 .names2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .blk{border-top:1px solid var(--line);padding:16px 0;display:grid;gap:10px}
 .blk textarea{border:1px solid var(--ink);padding:10px;width:100%}
+.gtools{display:flex;gap:14px 18px;flex-wrap:wrap;align-items:center;margin:28px 0 14px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:transparent;color:var(--ink);border:1px solid var(--line);padding:9px 16px;font-size:15px}
+.chip[aria-pressed=true]{background:var(--btn,var(--ink));color:var(--btn-text,var(--chalk));border-color:transparent}
+.gtools input[type=search]{flex:1 1 220px;max-width:340px}
+.gcount{font-size:15px;opacity:.75;margin:0 0 6px}
+.glist{list-style:none;padding:0;max-width:860px;margin-bottom:18px}
+.g{display:grid;grid-template-columns:1fr auto auto;gap:6px 22px;align-items:center;padding:20px 0;border-top:1px solid var(--line)}
+.g:last-child{border-bottom:1px solid var(--line)}
+.gmain strong{display:block;font:400 27px/1.15 "Instrument Serif",Georgia,serif}
+.gsub{display:block;font-size:15px;opacity:.7;margin-top:3px;overflow-wrap:anywhere}
+.pill{font-size:14px;padding:5px 14px;border-radius:999px;white-space:nowrap}
+.pill.yes{background:color-mix(in srgb,var(--euc) 24%,transparent)}
+.pill.no{background:color-mix(in srgb,var(--ink) 12%,transparent)}
+.pill.wait{border:1px dashed var(--line)}
+.gact{white-space:nowrap}
+details.adddet{margin:0 0 14px;max-width:640px}
+details.adddet summary{cursor:pointer;font-size:16px;margin-bottom:16px}
+@media (max-width:640px){.g{grid-template-columns:1fr auto;padding:18px 0}.gact{grid-column:1/-1;margin-left:-12px}}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 html{scroll-padding-top:100px;-webkit-text-size-adjust:100%}
 button,a,input,select,textarea{touch-action:manipulation}
@@ -215,21 +235,29 @@ button,a,input,select,textarea{touch-action:manipulation}
   <div class="band" id="adminWrap" hidden>
     <section data-tab="guests">
       <h2>Invited guests</h2>
-      <p class="story" id="invSummary" style="margin-bottom:24px"></p>
-      <form class="adm" id="iForm">
+      <details class="adddet" id="addDet">
+        <summary>Add a guest</summary>
+        <form class="adm" id="iForm">
         <input type="hidden" id="iId">
         <input id="iFirst" placeholder="First name" aria-label="First name" required>
         <input id="iLast" placeholder="Last name" aria-label="Last name" required>
         <input id="iNick" placeholder="Nicknames (Mike, Mick)" aria-label="Nicknames, comma separated"><select id="iLink" aria-label="Linked with"><option value="">Not linked to anyone</option></select>
         <div><button type="submit" id="iSave">Add guest</button> <button type="button" class="lnk" id="iCancel" hidden>Cancel</button></div>
       </form>
+      </details>
       <details class="bulk">
         <summary>Paste a list of names</summary>
         <p>One person or couple per line. Join a couple with &amp;, for example “Jess &amp; Tom Carter”, and they’ll be linked.</p>
         <textarea id="bulkText" aria-label="Names, one per line"></textarea>
         <button type="button" id="bulkBtn">Add names</button> <span class="ok" id="bulkMsg" role="status"></span>
       </details>
-      <div style="overflow-x:auto"><table id="invTable" class="tbl"></table></div>
+      <div class="gtools">
+        <div class="chips" id="gChips" role="group" aria-label="Filter guests"></div>
+        <input id="gSearch" type="search" placeholder="Search guests" aria-label="Search guests" autocomplete="off">
+      </div>
+      <p class="gcount" id="invSummary"></p>
+      <ul class="glist" id="invList"></ul>
+      <p><button type="button" class="lnk" id="gCopy">Copy these names</button> <span class="ok" id="gCopyMsg" role="status"></span></p>
     </section>
     <section data-tab="replies">
       <h2>Replies</h2>
@@ -622,26 +650,51 @@ function fillLinkOptions(excludeId, selected){
   invRows.filter(r => r.id !== excludeId).forEach(r => sel.add(new Option(r.first_name + " " + r.last_name, r.id)));
   sel.value = selected || "";
 }
+let gFilter = "all", shownGuests = [];
+const statusOf = r => r.attending === true ? "yes" : r.attending === false ? "no" : "wait";
 async function loadInvitees(){
   try { invRows = await rpc("admin_invitees", {p_code:CODE}); } catch(e){ invRows = []; }
-  const yes = invRows.filter(r=>r.attending===true).length, no = invRows.filter(r=>r.attending===false).length;
-  $("invSummary").textContent = invRows.length + " invited. " + yes + " coming, " + no + " declined, " + (invRows.length-yes-no) + " haven’t replied yet.";
   fillLinkOptions($("iId").value ? +$("iId").value : null, $("iLink").value);
-  const t = $("invTable"); t.innerHTML = "<tr><th>Name</th><th>Linked with</th><th>Reply</th><th></th></tr>";
-  invRows.forEach(r => {
-    const mates = invRows.filter(o => r.household_id && o.household_id === r.household_id && o.id !== r.id).map(o => o.first_name).join(", ");
-    const tr = t.insertRow();
-    [r.first_name + " " + r.last_name, mates, r.attending === true ? "Yes" : r.attending === false ? "No" : "Not yet"].forEach(v => { tr.insertCell().textContent = v; });
-    const td = tr.insertCell(); td.style.whiteSpace = "nowrap";
-    td.append(linkBtn("Edit", () => editInvitee(r)), linkBtn("Delete", () => delInvitee(r)));
-  });
-  labelTable(t);
+  renderGuests();
 }
+function renderGuests(){
+  const q = ($("gSearch").value || "").trim().toLowerCase();
+  const counts = {all:invRows.length, yes:0, no:0, wait:0}; invRows.forEach(r => counts[statusOf(r)]++);
+  const chips = $("gChips"); chips.innerHTML = "";
+  [["all","All"],["yes","Coming"],["no","Can’t come"],["wait","Not replied"]].forEach(([k, label]) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip";
+    b.setAttribute("aria-pressed", String(gFilter === k)); b.textContent = label + " " + counts[k];
+    b.onclick = () => { gFilter = k; renderGuests(); }; chips.append(b);
+  });
+  shownGuests = invRows.filter(r => (gFilter === "all" || statusOf(r) === gFilter) &&
+    (!q || (r.first_name + " " + r.last_name + " " + (r.nicknames || "")).toLowerCase().includes(q)));
+  $("invSummary").textContent = "Showing " + shownGuests.length + " of " + invRows.length;
+  const ul = $("invList"); ul.innerHTML = "";
+  if (!shownGuests.length){ const li = document.createElement("li"); li.className = "g"; li.textContent = invRows.length ? "No guests match." : "No guests yet. Add one above."; ul.append(li); return; }
+  shownGuests.forEach(r => {
+    const mates = invRows.filter(o => r.household_id && o.household_id === r.household_id && o.id !== r.id).map(o => o.first_name).join(", ");
+    const li = document.createElement("li"); li.className = "g";
+    li.innerHTML = '<div class="gmain"><strong></strong><span class="gsub"></span></div><span class="pill"></span><div class="gact"></div>';
+    li.querySelector("strong").textContent = r.first_name + " " + r.last_name;
+    const sub = [mates ? "With " + mates : "", r.nicknames ? "Also “" + r.nicknames + "”" : ""].filter(Boolean).join(" · ");
+    const subEl = li.querySelector(".gsub"); if (sub) subEl.textContent = sub; else subEl.remove();
+    const st = statusOf(r), pill = li.querySelector(".pill");
+    pill.className = "pill " + st; pill.textContent = {yes:"Coming", no:"Can’t come", wait:"Not replied"}[st];
+    li.querySelector(".gact").append(linkBtn("Edit", () => editInvitee(r)), linkBtn("Delete", () => delInvitee(r)));
+    ul.append(li);
+  });
+}
+$("gSearch").addEventListener("input", renderGuests);
+$("gCopy").onclick = async () => {
+  const text = shownGuests.map(r => r.first_name + " " + r.last_name).join("\n");
+  try { await navigator.clipboard.writeText(text); $("gCopyMsg").textContent = "Copied " + shownGuests.length + " names."; }
+  catch(e){ prompt("Copy these names:", text); }
+};
 function editInvitee(r){
   const mate = invRows.find(o => r.household_id && o.household_id === r.household_id && o.id !== r.id);
   $("iId").value = r.id; $("iFirst").value = r.first_name; $("iLast").value = r.last_name; $("iNick").value = r.nicknames || "";
   fillLinkOptions(r.id, mate ? mate.id : "");
-  $("iSave").textContent = "Save changes"; $("iCancel").hidden = false; $("iForm").scrollIntoView({block:"center"});
+  $("iSave").textContent = "Save changes"; $("iCancel").hidden = false; $("addDet").open = true; $("iForm").scrollIntoView({block:"center"});
 }
 function resetInvitee(){ $("iForm").reset(); $("iId").value = ""; fillLinkOptions(null, ""); $("iSave").textContent = "Add guest"; $("iCancel").hidden = true; }
 $("iCancel").onclick = resetInvitee;
