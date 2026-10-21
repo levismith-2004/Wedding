@@ -28,8 +28,8 @@ a{color:inherit}
 input,select,textarea{font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px solid var(--ink);padding:10px 2px;width:100%;border-radius:0}
 .gate input{color:#fff;border-color:#fff;flex:1 1 220px;width:auto;font-size:20px;letter-spacing:.08em;text-transform:uppercase}
 .gate input::placeholder{color:rgba(255,255,255,.6);letter-spacing:0;text-transform:none}
-button,.btn{font:inherit;font-weight:500;background:var(--ink);color:var(--chalk);border:0;padding:12px 26px;cursor:pointer;border-radius:999px;text-decoration:none;display:inline-block}
-.gate button{background:#fff;color:var(--ink)}
+button,.btn{font:inherit;font-weight:500;background:var(--btn,var(--ink));color:var(--btn-text,var(--chalk));border:0;padding:12px 26px;cursor:pointer;border-radius:999px;text-decoration:none;display:inline-block}
+.gate button{background:var(--btn,#fff);color:var(--btn-text,var(--ink))}
 button:disabled{opacity:.5;cursor:default}
 .err{color:#ffd9d0;flex-basis:100%;min-height:1.4em;font-size:15px}
 @keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
@@ -68,7 +68,7 @@ form.rsvp{display:grid;gap:26px;max-width:560px}
 .reg small{display:block;opacity:.75;font-size:15px}
 .reg .claimed h3{text-decoration:line-through;text-decoration-thickness:1px}
 .reg .claimed{opacity:.6}
-.reg button{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.reg button{background:transparent;color:var(--btn,var(--ink));border:1px solid var(--btn,var(--ink))}
 .reg .claimed button{border-color:transparent;text-decoration:underline;padding-inline:8px}
 #adminTable{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
 #adminTable th,#adminTable td{text-align:left;padding:10px 12px 10px 0;border-bottom:1px solid var(--line);vertical-align:top}
@@ -81,6 +81,23 @@ form.rsvp{display:grid;gap:26px;max-width:560px}
 .heropick{max-width:420px;margin-bottom:28px}
 .heropick label{display:block;font-size:15px;margin-bottom:6px}
 .heropick img{display:block;width:100%;margin:14px 0 6px;border-radius:2px}
+.find{position:relative;max-width:560px;margin-bottom:28px}
+.find label{display:block;font-size:15px;margin-bottom:2px}
+.find input{font-size:22px}
+.suggest{list-style:none;padding:0;position:absolute;left:0;right:0;z-index:4;background:var(--chalk);border:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.12)}
+.suggest li{padding:12px 14px;cursor:pointer;font-size:18px}
+.suggest li:hover,.suggest li[aria-selected=true]{background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.person{border-top:1px solid var(--line);padding:22px 0;display:grid;gap:16px}
+.person h3{font-size:30px}
+.person .also{font-size:15px;opacity:.75}
+details.manual{margin-top:36px;max-width:560px}
+details.manual summary,details.bulk summary{cursor:pointer;font-size:16px;margin-bottom:18px}
+details.bulk{margin:0 0 28px;max-width:640px}
+details.bulk textarea{border:1px solid var(--ink);padding:10px;width:100%;margin:8px 0 12px;min-height:120px}
+.banner{min-height:48vh;display:grid;align-content:end;padding:clamp(28px,5vw,72px);color:#fff;
+ background:linear-gradient(180deg,rgba(29,42,36,.2),rgba(29,42,36,.72)),var(--hero,linear-gradient(135deg,var(--euc),color-mix(in srgb,var(--euc) 45%,var(--chalk)) 55%,var(--sand))) center/cover}
+.banner .welcome{max-width:18ch;color:#fff;font-size:clamp(36px,7vw,84px);line-height:1}
+.banner .when{margin-top:18px;font-size:clamp(16px,2vw,22px)}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 @media (prefers-reduced-motion:reduce){.gate h1{animation:none}html{scroll-behavior:auto}}
 </style>
@@ -101,18 +118,27 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 <main id="site" hidden>
   <nav>
     <b id="navNames"></b>
-    <div><a href="#details">Details</a><a href="#gallery">Photos</a><a href="#rsvp">RSVP</a><a href="#registry">Registry</a></div>
+    <div><a href="#rsvp">RSVP</a><a href="#story">Our story</a><a href="#details">Details</a><a href="#registry">Registry</a></div>
   </nav>
-  <section>
+  <div class="banner">
     <p class="welcome" id="welcome"></p>
-  </section>
-  <section id="story"><h2>Our story</h2><p class="story" id="storyText"></p></section>
-  <section id="details"><h2>The day</h2><div class="details" id="detailsGrid"></div></section>
-  <section id="gallery"><h2>Photos</h2><div class="gallery" id="galleryGrid"></div></section>
+    <p class="when" id="bannerWhen"></p>
+  </div>
   <div class="band">
     <section id="rsvp">
       <h2>RSVP</h2>
-      <form class="rsvp" id="rsvpForm">
+            <div class="find">
+        <label for="nameSearch">Start typing your name</label>
+        <input id="nameSearch" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="nameList" aria-autocomplete="list">
+        <ul class="suggest" id="nameList" role="listbox" hidden></ul>
+      </div>
+      <form class="rsvp" id="hhForm" hidden>
+        <div id="hhPeople"></div>
+        <div><button type="submit" id="hhBtn">Send RSVP</button> <span class="ok" id="hhOk" role="status"></span></div>
+      </form>
+      <details class="manual">
+        <summary>Can’t find your name?</summary>
+        <form class="rsvp" id="rsvpForm">
         <div class="names">
           <div><label for="first">First name</label><input id="first" autocomplete="given-name" maxlength="80" required></div>
           <div><label for="last">Last name</label><input id="last" autocomplete="family-name" maxlength="80" required></div>
@@ -125,8 +151,11 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <div><label for="msg">A message for us</label><textarea id="msg" maxlength="1000"></textarea></div>
         <div><button type="submit" id="rsvpBtn">Send RSVP</button> <span class="ok" id="rsvpOk" role="status"></span></div>
       </form>
+      </details>
     </section>
   </div>
+  <section id="story"><h2>Our story</h2><p class="story" id="storyText"></p></section>
+  <section id="details"><h2>The day</h2><div class="details" id="detailsGrid"></div></section>
   <section id="registry">
     <h2>Registry</h2>
     <p class="story" style="margin-bottom:32px" id="regIntro"></p>
@@ -134,7 +163,23 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
   </section>
   <div class="band" id="adminWrap" hidden>
     <section id="admin">
-      <h2>Guest list</h2>
+      <h2>Invited guests</h2>
+      <p class="story" id="invSummary" style="margin-bottom:24px"></p>
+      <form class="adm" id="iForm">
+        <input type="hidden" id="iId">
+        <input id="iFirst" placeholder="First name" aria-label="First name" required>
+        <input id="iLast" placeholder="Last name" aria-label="Last name" required>
+        <select id="iLink" aria-label="Linked with"><option value="">Not linked to anyone</option></select>
+        <div><button type="submit" id="iSave">Add guest</button> <button type="button" class="lnk" id="iCancel" hidden>Cancel</button></div>
+      </form>
+      <details class="bulk">
+        <summary>Paste a list of names</summary>
+        <p>One person or couple per line. Join a couple with &amp;, for example “Jess &amp; Tom Carter”, and they’ll be linked.</p>
+        <textarea id="bulkText" aria-label="Names, one per line"></textarea>
+        <button type="button" id="bulkBtn">Add names</button> <span class="ok" id="bulkMsg" role="status"></span>
+      </details>
+      <div style="overflow-x:auto"><table id="invTable"></table></div>
+      <h2 style="margin-top:80px">Replies</h2>
       <p class="story" id="adminTotals" style="margin-bottom:24px"></p>
       <form class="adm" id="rForm">
         <input type="hidden" id="rId">
@@ -159,7 +204,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
       <h2 style="margin-top:80px">Appearance</h2>
       <div class="swatches" id="swatches"></div>
       <div class="heropick">
-        <label for="heroFile">Photo on the landing page</label>
+        <label for="heroFile">Cover photo (code screen and top of the site)</label>
         <input type="file" id="heroFile" accept="image/*">
         <img id="heroPrev" alt="Landing page photo preview" hidden>
         <button type="button" class="lnk" id="heroRemove" hidden>Remove photo</button>
@@ -202,7 +247,9 @@ const mine = new Set(JSON.parse(sessionStorageSafe("get") || "[]"));
 function sessionStorageSafe(op, v){ try { return op==="get" ? localStorage.getItem("claimed") : localStorage.setItem("claimed", v); } catch(e){ return null; } }
 
 /* ---- API: all access goes through Supabase RPC functions (see setup.sql) ---- */
-const demoDB = { rsvps: [
+const demoDB = { invitees: [
+  {id:1,first_name:"Jess",last_name:"Carter",household_id:1},{id:2,first_name:"Tom",last_name:"Carter",household_id:1},
+  {id:3,first_name:"Priya",last_name:"Shah",household_id:null},{id:4,first_name:"Alex",last_name:"Nguyen",household_id:null}], rsvps: [
   {id:1,first_name:"Jess",last_name:"Carter",attending:true,dietary:"Vegetarian",message:"Can’t wait!"},
   {id:2,first_name:"Priya",last_name:"Shah",attending:false,dietary:"",message:"Sorry, we’ll be overseas."}], items: [
   {id:1,name:"Linen sheet set",url:"https://example.com",price:"$220",note:"Sage, queen",claimed:false},
@@ -211,6 +258,37 @@ const demoDB = { rsvps: [
 async function rpc(fn, args){
   if (DEMO){
     if (fn==="get_settings") return null;
+    if (fn==="find_invitees"){ const q = args.p_q.trim().toLowerCase(); return q.length<2 ? [] : demoDB.invitees.filter(i=>(i.first_name+" "+i.last_name).toLowerCase().includes(q)).slice(0,6); }
+    if (fn==="get_household"){
+      const me = demoDB.invitees.find(i=>i.id===args.p_id);
+      return demoDB.invitees.filter(i=>i.id===me.id || (me.household_id && i.household_id===me.household_id))
+        .sort((a,b)=>(b.id===me.id)-(a.id===me.id))
+        .map(i=>{ const r = demoDB.rsvps.find(x=>x.invitee_id===i.id) || {}; return {id:i.id,first_name:i.first_name,last_name:i.last_name,attending:r.attending ?? null,dietary:r.dietary||"",message:r.message||""}; });
+    }
+    if (fn==="submit_household_rsvp"){
+      args.p_replies.forEach(rp => {
+        const inv = demoDB.invitees.find(i=>i.id===rp.id), k = demoDB.rsvps.findIndex(x=>x.invitee_id===rp.id);
+        const row = {id:k>=0?demoDB.rsvps[k].id:Date.now()+rp.id, invitee_id:rp.id, first_name:inv.first_name, last_name:inv.last_name, attending:rp.attending, dietary:rp.dietary, message:rp.message};
+        if (k>=0) demoDB.rsvps[k]=row; else demoDB.rsvps.push(row);
+      });
+      return true;
+    }
+    if (fn==="admin_invitees") return demoDB.invitees.map(i=>({...i, attending:(demoDB.rsvps.find(x=>x.invitee_id===i.id)||{}).attending ?? null}));
+    if (fn==="admin_save_invitee"){
+      let id = args.p_id;
+      if (id) Object.assign(demoDB.invitees.find(i=>i.id===id), {first_name:args.p_first,last_name:args.p_last});
+      else { id = Date.now(); demoDB.invitees.push({id,first_name:args.p_first,last_name:args.p_last,household_id:null}); }
+      const me = demoDB.invitees.find(i=>i.id===id);
+      if (!args.p_link_to || args.p_link_to===id) me.household_id = null;
+      else { const o = demoDB.invitees.find(i=>i.id===args.p_link_to); if (!o.household_id) o.household_id = Date.now(); me.household_id = o.household_id; }
+      return true;
+    }
+    if (fn==="admin_delete_invitee"){ demoDB.invitees = demoDB.invitees.filter(i=>i.id!==args.p_id); demoDB.rsvps = demoDB.rsvps.filter(r=>r.invitee_id!==args.p_id); return true; }
+    if (fn==="admin_bulk_add_invitees"){
+      let n = 0;
+      args.p_groups.forEach(g => { const hh = g.length>1 ? Date.now()+Math.random() : null; g.forEach(m => { demoDB.invitees.push({id:Date.now()+Math.random(),first_name:m.first,last_name:m.last,household_id:hh}); n++; }); });
+      return n;
+    }
     if (fn==="admin_save_settings") return true;
     if (fn==="check_code"){
       const c = args.p_code.trim().toUpperCase();
@@ -254,11 +332,17 @@ async function fetchSettings(code){
     if (r) Object.keys(r).forEach(k => { if (r[k] !== null && r[k] !== "") S[k] = r[k]; });
   } catch(e){}
 }
-const THEME = [["bg","Background","--chalk","#F2F4F0"],["text","Text","--ink","#1D2A24"],["accent","Accent","--euc","#5B7264"],["band","Section band","--sand","#D9D0C1"]];
+const THEME = [["bg","Background","--chalk","#F2F4F0"],["text","Text","--ink","#1D2A24"],["accent","Accent","--euc","#5B7264"],["band","Section band","--sand","#D9D0C1"],["button","Buttons","--btn","#1D2A24"]];
 const HEX = /^#[0-9a-fA-F]{6}$/;
+function textOn(hex){
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return (0.299*r + 0.587*g + 0.114*b) > 150 ? "#1D2A24" : "#FFFFFF";
+}
 function applyTheme(c){
   c = c || {};
-  THEME.forEach(([k,,v]) => { if (HEX.test(c[k]||"")) document.documentElement.style.setProperty(v, c[k]); else document.documentElement.style.removeProperty(v); });
+  const root = document.documentElement.style;
+  THEME.forEach(([k,,v]) => { if (HEX.test(c[k]||"")) root.setProperty(v, c[k]); else root.removeProperty(v); });
+  if (HEX.test(c.button||"")) root.setProperty("--btn-text", textOn(c.button)); else root.removeProperty("--btn-text");
 }
 function applyGate(){
   applyTheme(S.colors);
@@ -269,10 +353,10 @@ function applyGate(){
   if (S.hero_photo) document.documentElement.style.setProperty("--hero", 'url("' + encodeURI(S.hero_photo) + '")');
   else document.documentElement.style.removeProperty("--hero");
 }
-const tones = ["#A8C1BA","#D9D0C1","#5B7264","#C5D3CC","#B9AE9B","#8FA89B"], ratios = ["4/5","1/1","3/4","4/3","4/5","1/1"];
 function applySite(){
   const names = S.name_one + " & " + S.name_two;
   $("navNames").textContent = names;
+  $("bannerWhen").textContent = S.wedding_date + ", " + S.place;
   $("storyText").textContent = S.story || "";
   $("regIntro").textContent = S.registry_intro || "";
   $("footer").textContent = names + " · " + S.wedding_date;
@@ -282,14 +366,6 @@ function applySite(){
     el.innerHTML = "<h3></h3><p></p>";
     el.firstChild.textContent = d.title || ""; el.lastChild.textContent = d.body || "";
     $("detailsGrid").append(el);
-  });
-  $("galleryGrid").innerHTML = "";
-  const gal = (S.photos && S.photos.length) ? S.photos : tones.map((c,i)=>({ph:true,c,r:ratios[i]}));
-  gal.forEach(p => {
-    const f = document.createElement("figure");
-    if (p.ph){ f.innerHTML = '<div class="ph" role="img" aria-label="Photo placeholder"></div>'; f.firstChild.style.cssText = "--c:"+p.c+";--r:"+p.r; }
-    else { const i = new Image(); i.src = p.src; i.alt = p.alt || ""; i.loading = "lazy"; f.append(i); }
-    $("galleryGrid").append(f);
   });
 }
 applyGate();
@@ -311,7 +387,7 @@ $("codeForm").addEventListener("submit", async e => {
 async function unlock(){
   await fetchSettings(CODE); applyGate(); applySite();
   $("gate").hidden = true; $("site").hidden = false; scrollTo(0,0);
-  $("welcome").textContent = "Welcome, and thank you for being part of our day.";
+  $("welcome").textContent = "Welcome. Find your name below to let us know if you can join us.";
   loadRegistry();
   if (GUEST.is_admin) loadAdmin();
 }
@@ -329,7 +405,7 @@ async function loadAdmin(){
     const td = tr.insertCell(); td.style.whiteSpace = "nowrap";
     td.append(linkBtn("Edit", () => editReply(r)), linkBtn("Delete", () => delReply(r)));
   });
-  loadAdminReg(); buildAppearance();
+  loadAdminReg(); buildAppearance(); loadInvitees();
 }
 function editReply(r){
   $("rId").value = r.id; $("rFirst").value = r.first_name; $("rLast").value = r.last_name;
@@ -387,6 +463,69 @@ async function delItem(it){
   try { await rpc("admin_delete_item", {p_code:CODE, p_id:it.id}); } catch(e){ alert("Couldn’t delete."); }
   loadAdminReg(); loadRegistry();
 }
+
+/* ---- Invited guests (admin) ---- */
+let invRows = [];
+function fillLinkOptions(excludeId, selected){
+  const sel = $("iLink"); sel.innerHTML = ""; sel.add(new Option("Not linked to anyone", ""));
+  invRows.filter(r => r.id !== excludeId).forEach(r => sel.add(new Option(r.first_name + " " + r.last_name, r.id)));
+  sel.value = selected || "";
+}
+async function loadInvitees(){
+  try { invRows = await rpc("admin_invitees", {p_code:CODE}); } catch(e){ invRows = []; }
+  const yes = invRows.filter(r=>r.attending===true).length, no = invRows.filter(r=>r.attending===false).length;
+  $("invSummary").textContent = invRows.length + " invited. " + yes + " coming, " + no + " declined, " + (invRows.length-yes-no) + " haven’t replied yet.";
+  fillLinkOptions($("iId").value ? +$("iId").value : null, $("iLink").value);
+  const t = $("invTable"); t.innerHTML = "<tr><th>Name</th><th>Linked with</th><th>Reply</th><th></th></tr>";
+  invRows.forEach(r => {
+    const mates = invRows.filter(o => r.household_id && o.household_id === r.household_id && o.id !== r.id).map(o => o.first_name).join(", ");
+    const tr = t.insertRow();
+    [r.first_name + " " + r.last_name, mates, r.attending === true ? "Yes" : r.attending === false ? "No" : "Not yet"].forEach(v => { tr.insertCell().textContent = v; });
+    const td = tr.insertCell(); td.style.whiteSpace = "nowrap";
+    td.append(linkBtn("Edit", () => editInvitee(r)), linkBtn("Delete", () => delInvitee(r)));
+  });
+}
+function editInvitee(r){
+  const mate = invRows.find(o => r.household_id && o.household_id === r.household_id && o.id !== r.id);
+  $("iId").value = r.id; $("iFirst").value = r.first_name; $("iLast").value = r.last_name;
+  fillLinkOptions(r.id, mate ? mate.id : "");
+  $("iSave").textContent = "Save changes"; $("iCancel").hidden = false; $("iForm").scrollIntoView({block:"center"});
+}
+function resetInvitee(){ $("iForm").reset(); $("iId").value = ""; fillLinkOptions(null, ""); $("iSave").textContent = "Add guest"; $("iCancel").hidden = true; }
+$("iCancel").onclick = resetInvitee;
+$("iForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("iSave").disabled = true;
+  try {
+    const ok = await rpc("admin_save_invitee", {p_code:CODE, p_id:$("iId").value ? +$("iId").value : null, p_first:$("iFirst").value.trim(), p_last:$("iLast").value.trim(), p_link_to:$("iLink").value ? +$("iLink").value : null});
+    if (!ok) throw new Error();
+    resetInvitee(); await loadInvitees();
+  } catch(err){ alert("Couldn’t save that guest."); }
+  finally { $("iSave").disabled = false; }
+});
+async function delInvitee(r){
+  if (!confirm("Delete " + r.first_name + " " + r.last_name + " from the guest list? Their reply is deleted too.")) return;
+  try { await rpc("admin_delete_invitee", {p_code:CODE, p_id:r.id}); } catch(e){ alert("Couldn’t delete."); }
+  loadInvitees(); loadAdmin();
+}
+function parseNames(text){
+  return text.split("\n").map(l => l.trim()).filter(Boolean).map(line => {
+    const toks = line.split(/\s*(?:&|\+|\band\b)\s*/i).map(x => x.trim()).filter(Boolean).map(x => x.split(/\s+/));
+    const lastTok = toks[toks.length-1], shared = lastTok.length > 1 ? lastTok[lastTok.length-1] : "";
+    return toks.map(t => t.length === 1 ? {first:t[0], last:shared} : {first:t.slice(0,-1).join(" "), last:t[t.length-1]}).filter(x => x.first && x.last);
+  }).filter(g => g.length);
+}
+$("bulkBtn").onclick = async () => {
+  const groups = parseNames($("bulkText").value);
+  if (!groups.length){ $("bulkMsg").textContent = "Type or paste some names first."; return; }
+  $("bulkBtn").disabled = true; $("bulkMsg").textContent = "";
+  try {
+    const n = await rpc("admin_bulk_add_invitees", {p_code:CODE, p_groups:groups});
+    $("bulkMsg").textContent = n ? "Added " + n + " " + (n === 1 ? "person" : "people") + "." : "Nothing new to add (names already on the list are skipped).";
+    if (n) $("bulkText").value = "";
+    loadInvitees();
+  } catch(err){ $("bulkMsg").textContent = "Couldn’t add those. Please try again."; }
+  finally { $("bulkBtn").disabled = false; }
+};
 
 /* ---- Appearance (admin) ---- */
 let appearanceBuilt = false, heroPending;
@@ -452,6 +591,73 @@ $("rsvpForm").addEventListener("submit", async e => {
     $("rsvpOk").textContent = (yes ? "Thanks, " + first + ". We can’t wait to celebrate with you." : "Thanks for letting us know, " + first + ". We’ll miss you.") + " To reply for someone else, type their name above and send again.";
   } catch(err){ $("rsvpOk").textContent = "That didn’t send. Please try again."; }
   finally { $("rsvpBtn").disabled = false; }
+});
+
+/* ---- RSVP by name (with linked couples) ---- */
+let sugTimer, sugItems = [], sugIdx = -1, pickedId = null;
+const search = $("nameSearch"), sugList = $("nameList");
+function hideList(){ sugList.hidden = true; search.setAttribute("aria-expanded", "false"); sugIdx = -1; }
+function renderList(){
+  sugList.innerHTML = "";
+  sugItems.forEach((p, i) => {
+    const li = document.createElement("li"); li.setAttribute("role", "option"); li.setAttribute("aria-selected", String(i === sugIdx));
+    li.textContent = p.first_name + " " + p.last_name;
+    li.onmousedown = e => { e.preventDefault(); pickPerson(p); };
+    sugList.append(li);
+  });
+  sugList.hidden = !sugItems.length; search.setAttribute("aria-expanded", String(!!sugItems.length));
+}
+search.addEventListener("input", () => {
+  clearTimeout(sugTimer);
+  const q = search.value.trim();
+  if (q.length < 2){ sugItems = []; hideList(); return; }
+  sugTimer = setTimeout(async () => {
+    try { sugItems = await rpc("find_invitees", {p_code:CODE, p_q:q}); } catch(e){ sugItems = []; }
+    sugIdx = -1; renderList();
+  }, 200);
+});
+search.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp"){
+    if (!sugItems.length) return; e.preventDefault();
+    sugIdx = (sugIdx + (e.key === "ArrowDown" ? 1 : -1) + sugItems.length) % sugItems.length; renderList();
+  } else if (e.key === "Enter" && sugItems.length){ e.preventDefault(); pickPerson(sugItems[Math.max(sugIdx, 0)]); }
+  else if (e.key === "Escape") hideList();
+});
+search.addEventListener("blur", hideList);
+async function pickPerson(p){
+  hideList(); search.value = p.first_name + " " + p.last_name; $("hhOk").textContent = "";
+  let people = [];
+  try { people = await rpc("get_household", {p_code:CODE, p_id:p.id}); } catch(e){}
+  if (!people.length){ $("hhForm").hidden = true; alert("Couldn’t load that. Please try again."); return; }
+  pickedId = p.id; buildPeople(people); $("hhForm").hidden = false; $("hhForm").scrollIntoView({block:"nearest"});
+}
+function buildPeople(people){
+  const box = $("hhPeople"); box.innerHTML = "";
+  people.forEach((p, i) => {
+    const d = document.createElement("div"); d.className = "person"; d.dataset.id = p.id;
+    d.innerHTML = '<h3></h3><p class="also" hidden></p><fieldset><label class="radio"><input type="radio" name="a'+p.id+'" value="yes"> Joyfully accepts</label><label class="radio"><input type="radio" name="a'+p.id+'" value="no"> Regretfully declines</label></fieldset><div><label for="d'+p.id+'">Dietary requirements</label><input id="d'+p.id+'" class="diet" maxlength="500"></div><div><label for="m'+p.id+'">A message for us</label><textarea id="m'+p.id+'" class="msg" maxlength="1000"></textarea></div>';
+    d.querySelector("h3").textContent = p.first_name + " " + p.last_name;
+    if (i > 0){ const a = d.querySelector(".also"); a.hidden = false; a.textContent = "You can reply for " + p.first_name + " too. Leave it blank to skip."; }
+    if (p.attending === true || p.attending === false) d.querySelector('input[value="' + (p.attending ? "yes" : "no") + '"]').checked = true;
+    d.querySelector(".diet").value = p.dietary || ""; d.querySelector(".msg").value = p.message || "";
+    box.append(d);
+  });
+}
+$("hhForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const replies = [];
+  document.querySelectorAll("#hhPeople .person").forEach(d => {
+    const a = d.querySelector("input[type=radio]:checked"); if (!a) return;
+    replies.push({id:+d.dataset.id, attending:a.value === "yes", dietary:d.querySelector(".diet").value, message:d.querySelector(".msg").value});
+  });
+  if (!replies.length){ $("hhOk").textContent = "Please choose a reply for at least one person."; return; }
+  $("hhBtn").disabled = true; $("hhOk").textContent = "";
+  try {
+    const ok = await rpc("submit_household_rsvp", {p_code:CODE, p_id:pickedId, p_replies:replies});
+    if (!ok) throw new Error();
+    $("hhOk").textContent = "Thank you, your reply is in. To reply for someone else, search their name above.";
+  } catch(err){ $("hhOk").textContent = "That didn’t send. Please try again."; }
+  finally { $("hhBtn").disabled = false; }
 });
 
 /* ---- Registry ---- */
