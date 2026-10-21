@@ -106,6 +106,12 @@ details.bulk textarea{border:1px solid var(--ink);padding:10px;width:100%;margin
 [data-tab]:not(.on){display:none!important}
 nav a.on{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:7px}
 .adm-tab{font-style:italic;opacity:.85}
+.txt{display:grid;gap:24px;max-width:720px}
+.txt label{display:block;font-size:15px;margin-bottom:2px}
+.txt textarea{border:1px solid var(--ink);padding:10px;width:100%;resize:vertical}
+.names2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.blk{border-top:1px solid var(--line);padding:16px 0;display:grid;gap:10px}
+.blk textarea{border:1px solid var(--ink);padding:10px;width:100%}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 @media (prefers-reduced-motion:reduce){body:not(.loading) .gate h1{animation:none}.gate{transition:none}html{scroll-behavior:auto}}
 </style>
@@ -129,7 +135,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
     <b id="navNames"></b>
     <div>
       <a href="#rsvp" data-go="rsvp">RSVP</a><a href="#story" data-go="story">Our story</a><a href="#details" data-go="details">The day</a><a href="#registry" data-go="registry">Registry</a>
-      <a class="adm-tab" href="#guests" data-go="guests" hidden>Guests</a><a class="adm-tab" href="#replies" data-go="replies" hidden>Replies</a><a class="adm-tab" href="#regedit" data-go="regedit" hidden>Edit registry</a><a class="adm-tab" href="#look" data-go="look" hidden>Appearance</a>
+      <a class="adm-tab" href="#guests" data-go="guests" hidden>Guests</a><a class="adm-tab" href="#replies" data-go="replies" hidden>Replies</a><a class="adm-tab" href="#regedit" data-go="regedit" hidden>Edit registry</a><a class="adm-tab" href="#text" data-go="text" hidden>Edit text</a><a class="adm-tab" href="#look" data-go="look" hidden>Appearance</a>
     </div>
   </nav>
   <div class="banner" data-tab="rsvp">
@@ -218,6 +224,26 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <div><button type="submit" id="gSave">Add item</button> <button type="button" class="lnk" id="gCancel" hidden>Cancel</button></div>
       </form>
       <ul class="reg" id="adminReg"></ul>
+    </section>
+    <section data-tab="text">
+      <h2>Edit text</h2>
+      <form class="txt" id="tForm">
+        <div class="names2">
+          <div><label for="tName1">First name</label><input id="tName1" maxlength="80"></div>
+          <div><label for="tName2">Second name</label><input id="tName2" maxlength="80"></div>
+        </div>
+        <div><label for="tDate">Date</label><input id="tDate" maxlength="80"></div>
+        <div><label for="tPlace">Place</label><input id="tPlace" maxlength="120"></div>
+        <div><label for="tWelcome">Welcome message (top of the RSVP tab)</label><input id="tWelcome" maxlength="300"></div>
+        <div><label for="tStory">Our story</label><textarea id="tStory" rows="6" maxlength="4000"></textarea></div>
+        <div><label for="tReg">Registry intro</label><textarea id="tReg" rows="3" maxlength="600"></textarea></div>
+        <div>
+          <label>The day (headings and details, shown in this order)</label>
+          <div id="tDetails"></div>
+          <button type="button" class="lnk" id="tAddBlock">+ Add a block</button>
+        </div>
+        <div><button type="submit" id="tSave">Save text</button> <span class="ok" id="tMsg" role="status"></span></div>
+      </form>
     </section>
     <section data-tab="look">
       <h2>Appearance</h2>
@@ -317,7 +343,7 @@ async function rpc(fn, args){
       args.p_groups.forEach(g => { const hh = g.length>1 ? Date.now()+Math.random() : null; g.forEach(m => { demoDB.invitees.push({id:Date.now()+Math.random(),first_name:m.first,last_name:m.last,household_id:hh}); n++; }); });
       return n;
     }
-    if (fn==="admin_save_settings") return true;
+    if (fn==="admin_save_settings" || fn==="admin_save_content") return true;
     if (fn==="check_code"){
       const c = args.p_code.trim().toUpperCase();
       if (c==="DEMO") return {is_admin:false};
@@ -362,6 +388,8 @@ async function fetchSettings(code){
     if (r){
       Object.keys(r).forEach(k => { if (r[k] !== null && r[k] !== "") S[k] = r[k]; });
       S.hero_photo = r.hero_photo || CONFIG.heroPhoto; S.colors = r.colors || {};
+      ["story","registry_intro","welcome"].forEach(k => { if (k in r) S[k] = r[k] || ""; });
+      if ("details" in r) S.details = r.details || [];
     }
   } catch(e){}
 }
@@ -386,10 +414,12 @@ function applyGate(){
   if (S.hero_photo) document.documentElement.style.setProperty("--hero", 'url("' + encodeURI(S.hero_photo) + '")');
   else document.documentElement.style.removeProperty("--hero");
 }
+const DEFAULT_WELCOME = "Welcome. Find your name below to let us know if you can join us.";
 function applySite(){
   const names = S.name_one + " & " + S.name_two;
   $("navNames").textContent = names;
   $("bannerWhen").textContent = S.wedding_date + ", " + S.place;
+  $("welcome").textContent = S.welcome || DEFAULT_WELCOME;
   $("storyText").textContent = S.story || "";
   $("regIntro").textContent = S.registry_intro || "";
   $("footer").textContent = names + " · " + S.wedding_date;
@@ -426,7 +456,7 @@ function preload(src){
 })();
 
 /* ---- Tabs ---- */
-const TABS = ["rsvp","story","details","registry","guests","replies","regedit","look"], ADMIN_TABS = ["guests","replies","regedit","look"];
+const TABS = ["rsvp","story","details","registry","guests","replies","regedit","text","look"], ADMIN_TABS = ["guests","replies","regedit","text","look"];
 function showTab(name, push){
   if (!TABS.includes(name) || (ADMIN_TABS.includes(name) && !(GUEST && GUEST.is_admin))) name = "rsvp";
   document.querySelectorAll("[data-tab]").forEach(el => el.classList.toggle("on", el.dataset.tab === name));
@@ -455,7 +485,6 @@ $("codeForm").addEventListener("submit", async e => {
 async function unlock(){
   await fetchSettings(CODE); applyGate(); applySite();
   $("gate").hidden = true; $("site").hidden = false; showTab(location.hash.slice(1), false);
-  $("welcome").textContent = "Welcome. Find your name below to let us know if you can join us.";
   loadRegistry();
   if (GUEST.is_admin) loadAdmin();
 }
@@ -475,7 +504,7 @@ async function loadAdmin(){
     td.append(linkBtn("Edit", () => editReply(r)), linkBtn("Delete", () => delReply(r)));
     if (r.listed === false) td.append(linkBtn("Match to guest", () => matchReply(r, td)));
   });
-  loadAdminReg(); buildAppearance(); loadInvitees();
+  loadAdminReg(); buildAppearance(); loadInvitees(); buildText();
 }
 async function matchReply(r, td){
   let c = [];
@@ -609,6 +638,45 @@ $("bulkBtn").onclick = async () => {
   } catch(err){ $("bulkMsg").textContent = "Couldn’t add those. Please try again."; }
   finally { $("bulkBtn").disabled = false; }
 };
+
+/* ---- Edit text (admin) ---- */
+let textBuilt = false;
+function buildText(){
+  if (textBuilt) return; textBuilt = true;
+  $("tName1").value = S.name_one; $("tName2").value = S.name_two; $("tDate").value = S.wedding_date; $("tPlace").value = S.place;
+  $("tWelcome").value = S.welcome || DEFAULT_WELCOME; $("tStory").value = S.story || ""; $("tReg").value = S.registry_intro || "";
+  renderBlocks(S.details || []);
+}
+function renderBlocks(arr){
+  const box = $("tDetails"); box.innerHTML = "";
+  arr.forEach((d, i) => {
+    const b = document.createElement("div"); b.className = "blk";
+    b.innerHTML = '<input class="bt" maxlength="80" placeholder="Heading (e.g. Ceremony)" aria-label="Heading"><textarea class="bb" rows="3" maxlength="1000" placeholder="Details" aria-label="Details"></textarea><div></div>';
+    b.querySelector(".bt").value = d.title || ""; b.querySelector(".bb").value = d.body || "";
+    b.lastChild.append(
+      linkBtn("Move up", () => moveBlock(i, -1)), linkBtn("Move down", () => moveBlock(i, 1)),
+      linkBtn("Remove", () => { const a = getBlocks(); a.splice(i, 1); renderBlocks(a); }));
+    box.append(b);
+  });
+}
+function getBlocks(){ return [...document.querySelectorAll("#tDetails .blk")].map(b => ({title:b.querySelector(".bt").value.trim(), body:b.querySelector(".bb").value.trim()})); }
+function moveBlock(i, d){ const a = getBlocks(), j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; renderBlocks(a); }
+$("tAddBlock").onclick = () => renderBlocks([...getBlocks(), {title:"", body:""}]);
+$("tForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("tSave").disabled = true; $("tMsg").textContent = "";
+  const v = {name_one:$("tName1").value.trim(), name_two:$("tName2").value.trim(), wedding_date:$("tDate").value.trim(), place:$("tPlace").value.trim(),
+    welcome:$("tWelcome").value.trim(), story:$("tStory").value.trim(), registry_intro:$("tReg").value.trim(), details:getBlocks().filter(d => d.title || d.body)};
+  try {
+    const ok = await rpc("admin_save_content", {p_code:CODE, p_name_one:v.name_one, p_name_two:v.name_two, p_date:v.wedding_date, p_place:v.place,
+      p_welcome:v.welcome, p_story:v.story, p_registry_intro:v.registry_intro, p_details:v.details});
+    if (!ok) throw new Error();
+    Object.assign(S, {name_one:v.name_one || S.name_one, name_two:v.name_two || S.name_two, wedding_date:v.wedding_date || S.wedding_date, place:v.place || S.place,
+      welcome:v.welcome, story:v.story, registry_intro:v.registry_intro, details:v.details});
+    applyGate(); applySite(); writeCache();
+    $("tMsg").textContent = "Saved. Guests will see this straight away.";
+  } catch(err){ $("tMsg").textContent = "Couldn’t save. Please try again."; }
+  finally { $("tSave").disabled = false; }
+});
 
 /* ---- Appearance (admin) ---- */
 let appearanceBuilt = false, heroPending;
