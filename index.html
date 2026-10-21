@@ -90,6 +90,7 @@ form.rsvp{display:grid;gap:26px;max-width:560px}
 .person{border-top:1px solid var(--line);padding:22px 0;display:grid;gap:16px}
 .person h3{font-size:30px}
 .person .also{font-size:15px;opacity:.75}
+.find .also{font-size:15px;margin-top:10px}
 details.manual{margin-top:36px;max-width:560px}
 details.manual summary,details.bulk summary{cursor:pointer;font-size:16px;margin-bottom:18px}
 details.bulk{margin:0 0 28px;max-width:640px}
@@ -131,6 +132,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <label for="nameSearch">Start typing your name</label>
         <input id="nameSearch" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="nameList" aria-autocomplete="list">
         <ul class="suggest" id="nameList" role="listbox" hidden></ul>
+        <p class="also" id="noMatch" hidden>We couldn’t find that name. Check the spelling, or <button type="button" class="lnk" id="openManual">enter it yourself</button>.</p>
       </div>
       <form class="rsvp" id="hhForm" hidden>
         <div id="hhPeople"></div>
@@ -169,7 +171,7 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <input type="hidden" id="iId">
         <input id="iFirst" placeholder="First name" aria-label="First name" required>
         <input id="iLast" placeholder="Last name" aria-label="Last name" required>
-        <select id="iLink" aria-label="Linked with"><option value="">Not linked to anyone</option></select>
+        <input id="iNick" placeholder="Nicknames (Mike, Mick)" aria-label="Nicknames, comma separated"><select id="iLink" aria-label="Linked with"><option value="">Not linked to anyone</option></select>
         <div><button type="submit" id="iSave">Add guest</button> <button type="button" class="lnk" id="iCancel" hidden>Cancel</button></div>
       </form>
       <details class="bulk">
@@ -258,7 +260,16 @@ const demoDB = { invitees: [
 async function rpc(fn, args){
   if (DEMO){
     if (fn==="get_settings") return null;
-    if (fn==="find_invitees"){ const q = args.p_q.trim().toLowerCase(); return q.length<2 ? [] : demoDB.invitees.filter(i=>(i.first_name+" "+i.last_name).toLowerCase().includes(q)).slice(0,6); }
+    if (fn==="find_invitees"){
+      const lev = (a,b) => { const m = Array.from({length:a.length+1}, (_,i)=>[i,...Array(b.length).fill(0)]); for (let j=1;j<=b.length;j++) m[0][j]=j;
+        for (let i=1;i<=a.length;i++) for (let j=1;j<=b.length;j++) m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return m[a.length][b.length]; };
+      const norm = x => (x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+      const qt = norm(args.p_q).split(" ").filter(Boolean);
+      if (!qt.length || norm(args.p_q).length<2) return [];
+      return demoDB.invitees.map(i => { const tt = norm(i.first_name+" "+i.last_name+" "+(i.nicknames||"")).split(" ");
+        const sc = qt.reduce((t,w)=>t+Math.max(0,...tt.map(x=>x.startsWith(w)?1:1-lev(w,x)/Math.max(w.length,x.length))),0)/qt.length; return {i,sc}; })
+        .filter(x=>x.sc>=0.6).sort((a,b)=>b.sc-a.sc).slice(0,6).map(x=>({id:x.i.id,first_name:x.i.first_name,last_name:x.i.last_name}));
+    }
     if (fn==="get_household"){
       const me = demoDB.invitees.find(i=>i.id===args.p_id);
       return demoDB.invitees.filter(i=>i.id===me.id || (me.household_id && i.household_id===me.household_id))
@@ -276,8 +287,8 @@ async function rpc(fn, args){
     if (fn==="admin_invitees") return demoDB.invitees.map(i=>({...i, attending:(demoDB.rsvps.find(x=>x.invitee_id===i.id)||{}).attending ?? null}));
     if (fn==="admin_save_invitee"){
       let id = args.p_id;
-      if (id) Object.assign(demoDB.invitees.find(i=>i.id===id), {first_name:args.p_first,last_name:args.p_last});
-      else { id = Date.now(); demoDB.invitees.push({id,first_name:args.p_first,last_name:args.p_last,household_id:null}); }
+      if (id) Object.assign(demoDB.invitees.find(i=>i.id===id), {first_name:args.p_first,last_name:args.p_last,nicknames:args.p_nicknames});
+      else { id = Date.now(); demoDB.invitees.push({id,first_name:args.p_first,last_name:args.p_last,nicknames:args.p_nicknames,household_id:null}); }
       const me = demoDB.invitees.find(i=>i.id===id);
       if (!args.p_link_to || args.p_link_to===id) me.household_id = null;
       else { const o = demoDB.invitees.find(i=>i.id===args.p_link_to); if (!o.household_id) o.household_id = Date.now(); me.household_id = o.household_id; }
@@ -296,7 +307,9 @@ async function rpc(fn, args){
       if (c==="ADMIN") return {is_admin:true};
       return null;
     }
-    if (fn==="admin_rsvps") return demoDB.rsvps;
+    if (fn==="admin_rsvps") return demoDB.rsvps.map(r=>({...r, listed:!!r.invitee_id}));
+    if (fn==="admin_match_candidates") return demoDB.invitees.filter(i=>!demoDB.rsvps.some(r=>r.invitee_id===i.id)).slice(0,8).map(i=>({id:i.id,first_name:i.first_name,last_name:i.last_name}));
+    if (fn==="admin_link_reply"){ const r = demoDB.rsvps.find(x=>x.id===args.p_rsvp_id), i = demoDB.invitees.find(x=>x.id===args.p_invitee_id); if (!r||!i) return false; Object.assign(r,{invitee_id:i.id,first_name:i.first_name,last_name:i.last_name}); return true; }
     if (fn==="admin_save_rsvp"){
       const row = {id:args.p_id||Date.now(), first_name:args.p_first, last_name:args.p_last, attending:args.p_attending, dietary:args.p_dietary, message:args.p_message};
       const i = demoDB.rsvps.findIndex(r=>r.id===args.p_id);
@@ -401,11 +414,25 @@ async function loadAdmin(){
   const t = $("adminTable"); t.innerHTML = "<tr><th>Name</th><th>Reply</th><th>Dietary</th><th>Message</th><th></th></tr>";
   rows.forEach(r => {
     const tr = t.insertRow();
-    [r.first_name + " " + r.last_name, r.attending ? "Yes" : "No", r.dietary||"", r.message||""].forEach(v => { tr.insertCell().textContent = v; });
+    [r.first_name + " " + r.last_name + (r.listed === false ? " (not on list)" : ""), r.attending ? "Yes" : "No", r.dietary||"", r.message||""].forEach(v => { tr.insertCell().textContent = v; });
     const td = tr.insertCell(); td.style.whiteSpace = "nowrap";
     td.append(linkBtn("Edit", () => editReply(r)), linkBtn("Delete", () => delReply(r)));
+    if (r.listed === false) td.append(linkBtn("Match to guest", () => matchReply(r, td)));
   });
   loadAdminReg(); buildAppearance(); loadInvitees();
+}
+async function matchReply(r, td){
+  let c = [];
+  try { c = await rpc("admin_match_candidates", {p_code:CODE, p_rsvp_id:r.id}); } catch(e){}
+  if (!c.length){ alert("There are no guests left without a reply to match this to."); return; }
+  td.innerHTML = "";
+  const sel = document.createElement("select"); sel.style.width = "auto"; sel.setAttribute("aria-label", "Match to guest");
+  c.forEach(x => sel.add(new Option(x.first_name + " " + x.last_name, x.id)));
+  td.append(sel, linkBtn("Match", async () => {
+    try { const ok = await rpc("admin_link_reply", {p_code:CODE, p_rsvp_id:r.id, p_invitee_id:+sel.value}); if (!ok) throw new Error(); }
+    catch(e){ alert("Couldn’t match that reply."); }
+    loadAdmin(); loadInvitees();
+  }), linkBtn("Cancel", () => loadAdmin()));
 }
 function editReply(r){
   $("rId").value = r.id; $("rFirst").value = r.first_name; $("rLast").value = r.last_name;
@@ -487,7 +514,7 @@ async function loadInvitees(){
 }
 function editInvitee(r){
   const mate = invRows.find(o => r.household_id && o.household_id === r.household_id && o.id !== r.id);
-  $("iId").value = r.id; $("iFirst").value = r.first_name; $("iLast").value = r.last_name;
+  $("iId").value = r.id; $("iFirst").value = r.first_name; $("iLast").value = r.last_name; $("iNick").value = r.nicknames || "";
   fillLinkOptions(r.id, mate ? mate.id : "");
   $("iSave").textContent = "Save changes"; $("iCancel").hidden = false; $("iForm").scrollIntoView({block:"center"});
 }
@@ -496,7 +523,7 @@ $("iCancel").onclick = resetInvitee;
 $("iForm").addEventListener("submit", async e => {
   e.preventDefault(); $("iSave").disabled = true;
   try {
-    const ok = await rpc("admin_save_invitee", {p_code:CODE, p_id:$("iId").value ? +$("iId").value : null, p_first:$("iFirst").value.trim(), p_last:$("iLast").value.trim(), p_link_to:$("iLink").value ? +$("iLink").value : null});
+    const ok = await rpc("admin_save_invitee", {p_code:CODE, p_id:$("iId").value ? +$("iId").value : null, p_first:$("iFirst").value.trim(), p_last:$("iLast").value.trim(), p_link_to:$("iLink").value ? +$("iLink").value : null, p_nicknames:$("iNick").value.trim()});
     if (!ok) throw new Error();
     resetInvitee(); await loadInvitees();
   } catch(err){ alert("Couldn’t save that guest."); }
@@ -606,11 +633,12 @@ function renderList(){
     sugList.append(li);
   });
   sugList.hidden = !sugItems.length; search.setAttribute("aria-expanded", String(!!sugItems.length));
+  $("noMatch").hidden = sugItems.length > 0 || search.value.trim().length < 3;
 }
 search.addEventListener("input", () => {
   clearTimeout(sugTimer);
   const q = search.value.trim();
-  if (q.length < 2){ sugItems = []; hideList(); return; }
+  if (q.length < 2){ sugItems = []; hideList(); $("noMatch").hidden = true; return; }
   sugTimer = setTimeout(async () => {
     try { sugItems = await rpc("find_invitees", {p_code:CODE, p_q:q}); } catch(e){ sugItems = []; }
     sugIdx = -1; renderList();
@@ -624,8 +652,9 @@ search.addEventListener("keydown", e => {
   else if (e.key === "Escape") hideList();
 });
 search.addEventListener("blur", hideList);
+$("openManual").onclick = () => { const d = document.querySelector("details.manual"); d.open = true; $("first").value = search.value.trim().split(/\s+/)[0] || ""; $("first").focus(); d.scrollIntoView({block:"center"}); };
 async function pickPerson(p){
-  hideList(); search.value = p.first_name + " " + p.last_name; $("hhOk").textContent = "";
+  hideList(); $("noMatch").hidden = true; search.value = p.first_name + " " + p.last_name; $("hhOk").textContent = "";
   let people = [];
   try { people = await rpc("get_household", {p_code:CODE, p_id:p.id}); } catch(e){}
   if (!people.length){ $("hhForm").hidden = true; alert("Couldn’t load that. Please try again."); return; }
@@ -637,17 +666,24 @@ function buildPeople(people){
     const d = document.createElement("div"); d.className = "person"; d.dataset.id = p.id;
     d.innerHTML = '<h3></h3><p class="also" hidden></p><fieldset><label class="radio"><input type="radio" name="a'+p.id+'" value="yes"> Joyfully accepts</label><label class="radio"><input type="radio" name="a'+p.id+'" value="no"> Regretfully declines</label></fieldset><div><label for="d'+p.id+'">Dietary requirements</label><input id="d'+p.id+'" class="diet" maxlength="500"></div><div><label for="m'+p.id+'">A message for us</label><textarea id="m'+p.id+'" class="msg" maxlength="1000"></textarea></div>';
     d.querySelector("h3").textContent = p.first_name + " " + p.last_name;
-    if (i > 0){ const a = d.querySelector(".also"); a.hidden = false; a.textContent = "You can reply for " + p.first_name + " too. Leave it blank to skip."; }
-    if (p.attending === true || p.attending === false) d.querySelector('input[value="' + (p.attending ? "yes" : "no") + '"]').checked = true;
+    if (i > 0){ const a = d.querySelector(".also"); a.hidden = false; a.textContent = "We’ll use your answer for " + p.first_name + " too. Change it here if they’re replying differently."; }
+    if (p.attending === true || p.attending === false){ d.querySelector('input[value="' + (p.attending ? "yes" : "no") + '"]').checked = true; d.dataset.replied = "1"; }
     d.querySelector(".diet").value = p.dietary || ""; d.querySelector(".msg").value = p.message || "";
     box.append(d);
   });
+  const cards = [...box.querySelectorAll(".person")];
+  cards.forEach((d, i) => d.querySelectorAll("input[type=radio]").forEach(r => r.addEventListener("change", () => {
+    if (i === 0){
+      cards.slice(1).forEach(o => { if (!o.dataset.touched && !o.dataset.replied) o.querySelector('input[value="' + r.value + '"]').checked = true; });
+    } else d.dataset.touched = "1";
+  })));
 }
 $("hhForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const replies = [];
+  const replies = [], names = [];
   document.querySelectorAll("#hhPeople .person").forEach(d => {
     const a = d.querySelector("input[type=radio]:checked"); if (!a) return;
+    names.push(d.querySelector("h3").textContent.split(" ")[0]);
     replies.push({id:+d.dataset.id, attending:a.value === "yes", dietary:d.querySelector(".diet").value, message:d.querySelector(".msg").value});
   });
   if (!replies.length){ $("hhOk").textContent = "Please choose a reply for at least one person."; return; }
@@ -655,7 +691,7 @@ $("hhForm").addEventListener("submit", async e => {
   try {
     const ok = await rpc("submit_household_rsvp", {p_code:CODE, p_id:pickedId, p_replies:replies});
     if (!ok) throw new Error();
-    $("hhOk").textContent = "Thank you, your reply is in. To reply for someone else, search their name above.";
+    $("hhOk").textContent = "Thank you! We’ve got replies for " + (names.length > 1 ? names.slice(0,-1).join(", ") + " and " + names[names.length-1] : names[0]) + ". To reply for someone else, search their name above.";
   } catch(err){ $("hhOk").textContent = "That didn’t send. Please try again."; }
   finally { $("hhBtn").disabled = false; }
 });
