@@ -103,6 +103,9 @@ details.bulk textarea{border:1px solid var(--ink);padding:10px;width:100%;margin
  background:linear-gradient(180deg,rgba(29,42,36,.2),rgba(29,42,36,.72)),var(--hero,linear-gradient(135deg,var(--euc),color-mix(in srgb,var(--euc) 45%,var(--chalk)) 55%,var(--sand))) center/cover}
 .banner .welcome{max-width:18ch;color:#fff;font-size:clamp(36px,7vw,84px);line-height:1}
 .banner .when{margin-top:18px;font-size:clamp(16px,2vw,22px)}
+[data-tab]:not(.on){display:none!important}
+nav a.on{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:7px}
+.adm-tab{font-style:italic;opacity:.85}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 @media (prefers-reduced-motion:reduce){body:not(.loading) .gate h1{animation:none}.gate{transition:none}html{scroll-behavior:auto}}
 </style>
@@ -124,13 +127,16 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 <main id="site" hidden>
   <nav>
     <b id="navNames"></b>
-    <div><a href="#rsvp">RSVP</a><a href="#story">Our story</a><a href="#details">Details</a><a href="#registry">Registry</a></div>
+    <div>
+      <a href="#rsvp" data-go="rsvp">RSVP</a><a href="#story" data-go="story">Our story</a><a href="#details" data-go="details">The day</a><a href="#registry" data-go="registry">Registry</a>
+      <a class="adm-tab" href="#guests" data-go="guests" hidden>Guests</a><a class="adm-tab" href="#replies" data-go="replies" hidden>Replies</a><a class="adm-tab" href="#regedit" data-go="regedit" hidden>Edit registry</a><a class="adm-tab" href="#look" data-go="look" hidden>Appearance</a>
+    </div>
   </nav>
-  <div class="banner">
+  <div class="banner" data-tab="rsvp">
     <p class="welcome" id="welcome"></p>
     <p class="when" id="bannerWhen"></p>
   </div>
-  <div class="band">
+  <div class="band" data-tab="rsvp">
     <section id="rsvp">
       <h2>RSVP</h2>
             <div class="find">
@@ -161,15 +167,15 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
       </details>
     </section>
   </div>
-  <section id="story"><h2>Our story</h2><p class="story" id="storyText"></p></section>
-  <section id="details"><h2>The day</h2><div class="details" id="detailsGrid"></div></section>
-  <section id="registry">
+  <section id="story" data-tab="story"><h2>Our story</h2><p class="story" id="storyText"></p></section>
+  <section id="details" data-tab="details"><h2>The day</h2><div class="details" id="detailsGrid"></div></section>
+  <section id="registry" data-tab="registry">
     <h2>Registry</h2>
     <p class="story" style="margin-bottom:32px" id="regIntro"></p>
     <ul class="reg" id="regList"></ul>
   </section>
   <div class="band" id="adminWrap" hidden>
-    <section id="admin">
+    <section data-tab="guests">
       <h2>Invited guests</h2>
       <p class="story" id="invSummary" style="margin-bottom:24px"></p>
       <form class="adm" id="iForm">
@@ -186,7 +192,9 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <button type="button" id="bulkBtn">Add names</button> <span class="ok" id="bulkMsg" role="status"></span>
       </details>
       <div style="overflow-x:auto"><table id="invTable"></table></div>
-      <h2 style="margin-top:80px">Replies</h2>
+    </section>
+    <section data-tab="replies">
+      <h2>Replies</h2>
       <p class="story" id="adminTotals" style="margin-bottom:24px"></p>
       <form class="adm" id="rForm">
         <input type="hidden" id="rId">
@@ -198,7 +206,9 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <div><button type="submit" id="rSave">Add reply</button> <button type="button" class="lnk" id="rCancel" hidden>Cancel</button></div>
       </form>
       <div style="overflow-x:auto"><table id="adminTable"></table></div>
-      <h2 style="margin-top:80px">Edit registry</h2>
+    </section>
+    <section data-tab="regedit">
+      <h2>Edit registry</h2>
       <form class="adm" id="gForm">
         <input type="hidden" id="gId">
         <input id="gName" placeholder="Item name" aria-label="Item name" required>
@@ -208,7 +218,9 @@ footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
         <div><button type="submit" id="gSave">Add item</button> <button type="button" class="lnk" id="gCancel" hidden>Cancel</button></div>
       </form>
       <ul class="reg" id="adminReg"></ul>
-      <h2 style="margin-top:80px">Appearance</h2>
+    </section>
+    <section data-tab="look">
+      <h2>Appearance</h2>
       <div class="swatches" id="swatches"></div>
       <div class="heropick">
         <label for="heroFile">Cover photo (code screen and top of the site)</label>
@@ -413,6 +425,20 @@ function preload(src){
   } finally { document.body.classList.remove("loading"); }
 })();
 
+/* ---- Tabs ---- */
+const TABS = ["rsvp","story","details","registry","guests","replies","regedit","look"], ADMIN_TABS = ["guests","replies","regedit","look"];
+function showTab(name, push){
+  if (!TABS.includes(name) || (ADMIN_TABS.includes(name) && !(GUEST && GUEST.is_admin))) name = "rsvp";
+  document.querySelectorAll("[data-tab]").forEach(el => el.classList.toggle("on", el.dataset.tab === name));
+  document.querySelectorAll("nav a[data-go]").forEach(a => {
+    const on = a.dataset.go === name; a.classList.toggle("on", on);
+    if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+  if (push){ try { history.replaceState(null, "", "#" + name); } catch(e){} }
+  scrollTo(0, 0);
+}
+document.querySelectorAll("nav a[data-go]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); showTab(a.dataset.go, true); }));
+
 /* ---- Gate ---- */
 $("codeForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -428,7 +454,7 @@ $("codeForm").addEventListener("submit", async e => {
 
 async function unlock(){
   await fetchSettings(CODE); applyGate(); applySite();
-  $("gate").hidden = true; $("site").hidden = false; scrollTo(0,0);
+  $("gate").hidden = true; $("site").hidden = false; showTab(location.hash.slice(1), false);
   $("welcome").textContent = "Welcome. Find your name below to let us know if you can join us.";
   loadRegistry();
   if (GUEST.is_admin) loadAdmin();
@@ -436,6 +462,7 @@ async function unlock(){
 const linkBtn = (label, fn) => { const b = document.createElement("button"); b.type="button"; b.className="lnk"; b.textContent=label; b.onclick=fn; return b; };
 async function loadAdmin(){
   $("adminWrap").hidden = false;
+  document.querySelectorAll(".adm-tab").forEach(a => a.hidden = false);
   let rows = [];
   try { rows = await rpc("admin_rsvps", {p_code:CODE}); } catch(e){}
   const yes = rows.filter(r=>r.attending===true).length, no = rows.filter(r=>r.attending===false).length;
