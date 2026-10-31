@@ -182,6 +182,20 @@ details.faq p{max-width:56ch;margin-inline:auto}
 #registry .reg li{grid-template-columns:1fr;justify-items:center}
 #registry .reg li>button{min-width:220px}
 #registry .reg li.claimed>button{justify-self:center}
+/* registry: grid of cards instead of one long list */
+#registry .reg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;max-width:1100px;margin-inline:auto;padding:0;list-style:none}
+#registry .reg li{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:14px;text-align:center;padding:22px 16px;border:1px solid var(--line);border-radius:8px}
+#registry .reg li:last-child{border-bottom:1px solid var(--line)}
+#registry .reg li.regmsg{grid-column:1/-1;border:0}
+#registry .reg h3{font-size:24px;line-height:1.15;overflow-wrap:anywhere}
+#registry .reg small{display:block;margin-top:4px}
+#registry .reg a{display:inline-block;margin-top:6px;font-size:15px;text-decoration:underline}
+#registry .reg li>button{width:100%;min-width:0;margin-top:auto}
+#registry .reg li.claimed>button{width:auto}
+#registry .reg li.mine{opacity:1}
+#registry .reg li.mine h3{text-decoration:none}
+details.taken{max-width:1100px;margin:32px auto 0}
+details.taken summary{cursor:pointer;font-size:16px;margin-bottom:18px;opacity:.85}
 html{scroll-padding-top:100px;-webkit-text-size-adjust:100%}
 button,a,input,select,textarea{touch-action:manipulation}
 body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:rgba(0,0,0,.92);z-index:50;pointer-events:none}
@@ -215,6 +229,13 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
   .tbl td:first-child{font-weight:500;font-size:18px}
   .tbl td:first-child::before{display:none}
   footer{padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+}
+@media (max-width:640px){
+  #registry .reg{grid-template-columns:1fr 1fr;gap:10px}
+  #registry .reg li{padding:16px 10px;gap:10px}
+  #registry .reg h3{font-size:20px}
+  #registry .reg small,#registry .reg a{font-size:14px}
+  #registry .reg li>button{padding:12px 6px;font-size:15px}
 }
 @media (prefers-reduced-motion:reduce){body:not(.loading) .gate h1{animation:none}.gate{transition:none}html{scroll-behavior:auto}}
 </style>
@@ -282,6 +303,10 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
     <h2>Registry</h2>
     <p class="story" style="margin-bottom:32px" id="regIntro"></p>
     <ul class="reg" id="regList"></ul>
+    <details class="taken" id="regTakenWrap" hidden>
+      <summary id="regTakenSum"></summary>
+      <ul class="reg" id="regTaken"></ul>
+    </details>
   </section>
   <div class="band" id="adminWrap" hidden>
     <section data-tab="guests">
@@ -1071,26 +1096,33 @@ $("hhForm").addEventListener("submit", async e => {
 });
 
 /* ---- Registry ---- */
+function regCard(it){
+  const li = document.createElement("li"), mineNow = mine.has(it.id);
+  if (it.claimed) li.className = "claimed" + (mineNow ? " mine" : "");
+  li.innerHTML = '<div><h3></h3><small></small><a target="_blank" rel="noopener"></a></div>';
+  li.querySelector("h3").textContent = it.name;
+  const sm = li.querySelector("small"), meta = [it.price, it.note].filter(Boolean).join(" · ");
+  if (meta) sm.textContent = meta; else sm.remove();
+  const a = li.querySelector("a");
+  if (it.url){ a.href = it.url; a.textContent = "View item"; } else a.remove();
+  if (it.claimed && !mineNow) return li;
+  const b = document.createElement("button");
+  if (!it.claimed){ b.textContent = "I’ll get this"; b.onclick = () => claim(it.id, true, b); }
+  else { b.textContent = "You ticked this. Undo"; b.onclick = () => claim(it.id, false, b); }
+  li.append(b); return li;
+}
+function regMsg(ul, text){ const li = document.createElement("li"); li.className = "regmsg"; li.textContent = text; ul.append(li); }
 async function loadRegistry(){
   let items = [];
   try { items = await rpc("get_registry", {p_code:CODE}); } catch(e){}
-  const ul = $("regList"); ul.innerHTML = "";
-  if (!items.length){ ul.innerHTML = "<li>Our registry will appear here soon.</li>"; return; }
-  items.forEach(it => {
-    const li = document.createElement("li");
-    const mineNow = mine.has(it.id);
-    if (it.claimed) li.className = "claimed";
-    li.innerHTML = '<div><h3></h3><small></small><a target="_blank" rel="noopener"></a></div>';
-    li.querySelector("h3").textContent = it.name;
-    li.querySelector("small").textContent = [it.price, it.note].filter(Boolean).join(" · ");
-    const a = li.querySelector("a");
-    if (it.url){ a.href = it.url; a.textContent = "View item"; } else a.remove();
-    const b = document.createElement("button");
-    if (!it.claimed){ b.textContent = "I’ll get this"; b.onclick = () => claim(it.id, true, b); }
-    else if (mineNow){ b.textContent = "You ticked this. Undo"; b.onclick = () => claim(it.id, false, b); }
-    else { b.textContent = "Already taken"; b.disabled = true; }
-    li.append(b); ul.append(li);
-  });
+  const ul = $("regList"), tk = $("regTaken"), wrap = $("regTakenWrap"), wasOpen = wrap.open;
+  ul.innerHTML = ""; tk.innerHTML = "";
+  if (!items.length){ regMsg(ul, "Our registry will appear here soon."); wrap.hidden = true; return; }
+  const avail = items.filter(i => !i.claimed || mine.has(i.id)), taken = items.filter(i => i.claimed && !mine.has(i.id));
+  if (!avail.length) regMsg(ul, "Everything has been ticked off. Thank you!");
+  avail.forEach(i => ul.append(regCard(i)));
+  taken.forEach(i => tk.append(regCard(i)));
+  wrap.hidden = !taken.length; $("regTakenSum").textContent = "Already taken (" + taken.length + ")"; wrap.open = wasOpen && taken.length > 0;
 }
 async function claim(id, on, btn){
   btn.disabled = true;
