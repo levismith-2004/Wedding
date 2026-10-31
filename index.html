@@ -160,6 +160,28 @@ details.faq[open] summary::after{content:"–"}
 details.faq p{margin-top:12px;white-space:pre-line}
 .hint{font-size:14px;opacity:.7;margin:2px 0 8px}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
+/* centred guest pages (admin tabs stay left-aligned) */
+nav b{text-align:center}
+nav div{justify-content:center;justify-content:safe center}
+@media (min-width:641px){nav{flex-direction:column;justify-content:center;gap:2px;padding-block:12px}}
+.banner{align-content:center;justify-items:center;text-align:center}
+#rsvp,#details,#registry{text-align:center}
+#rsvp .find,#rsvp .rsvp,#rsvp details.manual{margin-inline:auto}
+#rsvp .find input,#rsvp .rsvp input:not([type=radio]):not([type=checkbox]),#rsvp .rsvp select{text-align:center}
+#rsvp .rsvp textarea{text-align:left}
+#rsvp .suggest li{text-align:center}
+#rsvp .rsvp fieldset{justify-content:center}
+#rsvp .rsvp .radio{justify-content:center}
+#details .details{justify-items:center}
+#details .pmap{margin-inline:auto}
+details.faq{margin-inline:auto}
+details.faq summary{justify-content:center;text-align:center}
+details.faq p{max-width:56ch;margin-inline:auto}
+#registry .story{margin-inline:auto}
+#registry .reg{margin-inline:auto}
+#registry .reg li{grid-template-columns:1fr;justify-items:center}
+#registry .reg li>button{min-width:220px}
+#registry .reg li.claimed>button{justify-self:center}
 html{scroll-padding-top:100px;-webkit-text-size-adjust:100%}
 button,a,input,select,textarea{touch-action:manipulation}
 body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:rgba(0,0,0,.92);z-index:50;pointer-events:none}
