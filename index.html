@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F2F4F0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="L &amp; S">
 <title>Our Wedding</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -130,6 +136,10 @@ nav a.on{text-decoration:underline;text-decoration-thickness:2px;text-underline-
 .pill.no{background:color-mix(in srgb,var(--ink) 12%,transparent)}
 .pill.wait{border:1px dashed var(--line)}
 .gact{white-space:nowrap}
+.ged{grid-column:1/-1;display:grid;gap:14px;padding:10px 0 4px;max-width:560px}
+.ged fieldset{border:0;padding:0;display:flex;gap:8px 24px;flex-wrap:wrap}
+.ged .radio{display:flex;align-items:center;gap:10px;font-size:16px;cursor:pointer}
+.ged .radio input{width:22px;height:22px}
 details.adddet{margin:0 0 14px;max-width:640px}
 details.adddet summary{cursor:pointer;font-size:16px;margin-bottom:16px}
 @media (max-width:640px){.g{grid-template-columns:1fr auto;padding:18px 0}.gact{grid-column:1/-1;margin-left:-12px}}
@@ -387,7 +397,13 @@ async function rpc(fn, args){
       });
       return true;
     }
-    if (fn==="admin_invitees") return demoDB.invitees.map(i=>({...i, attending:(demoDB.rsvps.find(x=>x.invitee_id===i.id)||{}).attending ?? null}));
+    if (fn==="admin_invitees") return demoDB.invitees.map(i=>{ const r = demoDB.rsvps.find(x=>x.invitee_id===i.id) || {}; return {...i, attending:r.attending ?? null, dietary:r.dietary||"", message:r.message||""}; });
+    if (fn==="admin_set_reply"){
+      const inv = demoDB.invitees.find(i=>i.id===args.p_invitee_id); if (!inv) return false;
+      demoDB.rsvps = demoDB.rsvps.filter(x=>x.invitee_id!==inv.id);
+      if (args.p_attending !== null) demoDB.rsvps.push({id:Date.now()+inv.id, invitee_id:inv.id, first_name:inv.first_name, last_name:inv.last_name, attending:args.p_attending, dietary:args.p_dietary, message:args.p_message});
+      return true;
+    }
     if (fn==="admin_save_invitee"){
       let id = args.p_id;
       if (id) Object.assign(demoDB.invitees.find(i=>i.id===id), {first_name:args.p_first,last_name:args.p_last,nicknames:args.p_nicknames});
@@ -515,6 +531,11 @@ function preload(src){
     net.then(() => { writeCache(); applyGate(); });
   } finally { document.body.classList.remove("loading"); }
 })();
+
+/* ---- Web app (installable) ---- */
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
 
 /* ---- Tabs ---- */
 const TABS = ["rsvp","story","details","registry","guests","replies","regedit","text","look"], ADMIN_TABS = ["guests","replies","regedit","text","look"];
@@ -680,9 +701,35 @@ function renderGuests(){
     const subEl = li.querySelector(".gsub"); if (sub) subEl.textContent = sub; else subEl.remove();
     const st = statusOf(r), pill = li.querySelector(".pill");
     pill.className = "pill " + st; pill.textContent = {yes:"Coming", no:"Can’t come", wait:"Not replied"}[st];
-    li.querySelector(".gact").append(linkBtn("Edit", () => editInvitee(r)), linkBtn("Delete", () => delInvitee(r)));
+    li.querySelector(".gact").append(linkBtn("Set reply", () => openReplyEditor(li, r)), linkBtn("Edit", () => editInvitee(r)), linkBtn("Delete", () => delInvitee(r)));
     ul.append(li);
   });
+}
+function openReplyEditor(li, r){
+  const old = li.querySelector(".ged"); if (old){ old.remove(); return; }
+  const mates = invRows.filter(o => r.household_id && o.household_id === r.household_id && o.id !== r.id);
+  const ed = document.createElement("div"); ed.className = "ged";
+  ed.innerHTML = '<fieldset><label class="radio"><input type="radio" name="s' + r.id + '" value="yes"> Coming</label><label class="radio"><input type="radio" name="s' + r.id + '" value="no"> Can’t come</label><label class="radio"><input type="radio" name="s' + r.id + '" value="clear"> Not replied</label></fieldset>'
+    + '<input class="gd" maxlength="500" placeholder="Dietary requirements" aria-label="Dietary requirements"><input class="gm" maxlength="1000" placeholder="Message" aria-label="Message">'
+    + (mates.length ? '<label class="radio"><input type="checkbox" class="gboth"> <span>Same answer for </span></label>' : '') + '<div></div>';
+  const cur = statusOf(r) === "wait" ? "clear" : statusOf(r);
+  ed.querySelector('input[value="' + cur + '"]').checked = true;
+  ed.querySelector(".gd").value = r.dietary || ""; ed.querySelector(".gm").value = r.message || "";
+  if (mates.length) ed.querySelector(".gboth").nextElementSibling.textContent = "Use the same answer for " + mates.map(m => m.first_name).join(", ");
+  const save = document.createElement("button"); save.type = "button"; save.textContent = "Save reply";
+  save.onclick = async () => {
+    const v = ed.querySelector("input[type=radio]:checked").value, att = v === "yes" ? true : v === "no" ? false : null;
+    save.disabled = true;
+    try {
+      let ok = await rpc("admin_set_reply", {p_code:CODE, p_invitee_id:r.id, p_attending:att, p_dietary:ed.querySelector(".gd").value, p_message:ed.querySelector(".gm").value});
+      if (!ok) throw new Error();
+      const both = ed.querySelector(".gboth");
+      if (both && both.checked) for (const m of mates) await rpc("admin_set_reply", {p_code:CODE, p_invitee_id:m.id, p_attending:att, p_dietary:m.dietary || "", p_message:m.message || ""});
+      await loadAdmin();
+    } catch(e){ alert("Couldn’t save that reply."); save.disabled = false; }
+  };
+  ed.lastChild.append(save, linkBtn("Cancel", () => ed.remove()));
+  li.append(ed);
 }
 $("gSearch").addEventListener("input", renderGuests);
 $("gCopy").onclick = async () => {
