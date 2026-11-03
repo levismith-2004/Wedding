@@ -160,6 +160,12 @@ details.faq[open] summary::after{content:"–"}
 details.faq p{margin-top:12px;white-space:pre-line}
 .hint{font-size:14px;opacity:.7;margin:2px 0 8px}
 .story,.welcome{white-space:pre-line}
+dialog.dlg{border:0;border-radius:14px;padding:30px 26px 22px;width:min(92vw,400px);background:var(--chalk);color:var(--ink);text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+dialog.dlg::backdrop{background:rgba(0,0,0,.5)}
+dialog.dlg h3{font-size:30px;margin-bottom:10px;overflow-wrap:anywhere}
+dialog.dlg p{margin-bottom:22px}
+.dlgbtn{display:grid;gap:6px;justify-items:center}
+.dlgbtn button:first-child{width:100%}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 /* centred guest pages (admin tabs stay left-aligned) */
 nav b{text-align:center}
@@ -406,6 +412,12 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
   </div>
   <footer id="footer"></footer>
 </main>
+
+<dialog class="dlg" id="dlg" aria-labelledby="dlgTitle" aria-describedby="dlgText">
+  <h3 id="dlgTitle"></h3>
+  <p id="dlgText"></p>
+  <div class="dlgbtn"><button type="button" id="dlgOk"></button><button type="button" class="lnk" id="dlgNo">Cancel</button></div>
+</dialog>
 
 <script>
 /* ============ EDIT THIS BLOCK ============
@@ -1099,6 +1111,18 @@ $("hhForm").addEventListener("submit", async e => {
 });
 
 /* ---- Registry ---- */
+function askConfirm(title, text, okLabel){
+  const d = $("dlg");
+  if (!d.showModal) return Promise.resolve(confirm(title + "\n" + text));
+  return new Promise(res => {
+    $("dlgTitle").textContent = title; $("dlgText").textContent = text; $("dlgOk").textContent = okLabel;
+    const done = v => { d.close(); res(v); };
+    $("dlgOk").onclick = () => done(true); $("dlgNo").onclick = () => done(false);
+    d.oncancel = e => { e.preventDefault(); done(false); };
+    d.onclick = e => { if (e.target !== d) return; const r = d.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) done(false); };
+    d.showModal(); $("dlgNo").focus();
+  });
+}
 function regCard(it){
   const li = document.createElement("li"), mineNow = mine.has(it.id);
   if (it.claimed) li.className = "claimed" + (mineNow ? " mine" : "");
@@ -1111,11 +1135,11 @@ function regCard(it){
   if (it.claimed && !mineNow) return li;
   if (it.claimed){
     const t = document.createElement("span"); t.className = "tick"; t.textContent = "Ticked off. Thank you!";
-    const u = linkBtn("Undo", () => claim(it.id, false, u));
+    const u = linkBtn("Undo", async () => { if (await askConfirm("Put it back?", "“" + it.name + "” will show as available again.", "Yes, put it back")) claim(it.id, false, u); });
     li.append(t, u); return li;
   }
   const b = document.createElement("button");
-  b.textContent = "I’ll get this"; b.onclick = () => claim(it.id, true, b);
+  b.textContent = "I’ll get this"; b.onclick = async () => { if (await askConfirm("Tick off “" + it.name + "”?", "We’ll mark it as taken so nobody else doubles up. You can undo it later on this device.", "Yes, I’ll get this")) claim(it.id, true, b); };
   li.append(b); return li;
 }
 function regMsg(ul, text){ const li = document.createElement("li"); li.className = "regmsg"; li.textContent = text; ul.append(li); }
