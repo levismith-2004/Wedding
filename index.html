@@ -159,6 +159,7 @@ details.faq summary::after{content:"+";font-family:"DM Sans",sans-serif}
 details.faq[open] summary::after{content:"–"}
 details.faq p{margin-top:12px;white-space:pre-line}
 .hint{font-size:14px;opacity:.7;margin:2px 0 8px}
+.story,.welcome{white-space:pre-line}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 /* centred guest pages (admin tabs stay left-aligned) */
 nav b{text-align:center}
@@ -372,7 +373,7 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
         </div>
         <div><label for="tDate">Date</label><input id="tDate" maxlength="80"></div>
         <div><label for="tPlace">Place</label><input id="tPlace" maxlength="120"></div>
-        <div><label for="tWelcome">Welcome message (top of the RSVP tab)</label><input id="tWelcome" maxlength="300"></div>
+        <div><label for="tWelcome">Welcome message (top of the RSVP tab)</label><textarea id="tWelcome" rows="2" maxlength="300"></textarea></div>
         <div><label for="tStory">Our story (keep it short)</label><textarea id="tStory" rows="4" maxlength="600"></textarea></div>
         <div><label for="tReg">Registry intro</label><textarea id="tReg" rows="3" maxlength="600"></textarea></div>
         <div>
