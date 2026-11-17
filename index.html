@@ -269,7 +269,7 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
     <b id="navNames"></b>
     <div>
       <a href="#rsvp" data-go="rsvp">RSVP</a><a href="#story" data-go="story">Our story</a><a href="#details" data-go="details">The day</a><a href="#registry" data-go="registry">Registry</a>
-      <a class="adm-tab" href="#guests" data-go="guests" hidden>Guests</a><a class="adm-tab" href="#replies" data-go="replies" hidden>Replies</a><a class="adm-tab" href="#regedit" data-go="regedit" hidden>Edit registry</a><a class="adm-tab" href="#codes" data-go="codes" hidden>Codes</a><a class="adm-tab" href="#text" data-go="text" hidden>Edit text</a><a class="adm-tab" href="#look" data-go="look" hidden>Appearance</a>
+      <a class="adm-tab" href="#guests" data-go="guests" hidden>Guests</a><a class="adm-tab" href="#replies" data-go="replies" hidden>Replies</a><a class="adm-tab" href="#regedit" data-go="regedit" hidden>Edit registry</a><a class="adm-tab" href="#engagement" data-go="engagement" hidden>Engagement</a><a class="adm-tab" href="#codes" data-go="codes" hidden>Codes</a><a class="adm-tab" href="#text" data-go="text" hidden>Edit text</a><a class="adm-tab" href="#look" data-go="look" hidden>Appearance</a>
     </div>
   </nav>
   <div class="banner" data-tab="rsvp">
@@ -407,6 +407,31 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
         <p class="hint">Codes can be 4 to 40 letters, numbers or dashes. Changing the guest code stops the old one working straight away.</p>
       </div>
     </section>
+    <section data-tab="engagement">
+      <h2>Engagement party</h2>
+      <p class="hint" style="margin-bottom:22px">A separate page at <b>/engagement</b> on your site, with its own heading, date, details, photo and colours. It shows the same gift registry as the wedding site. Give guests the registry-only code (Codes tab). <a href="engagement.html" target="_blank" rel="noopener">Open the page</a></p>
+      <form class="txt" id="eForm">
+        <div><label for="eTitle">Heading</label><input id="eTitle" maxlength="120"></div>
+        <div><label for="eDate">Date</label><input id="eDate" maxlength="80"></div>
+        <div><label for="ePlace">Place</label><input id="ePlace" maxlength="120"></div>
+        <div><label for="eWelcome">Welcome message (top of the party page)</label><textarea id="eWelcome" rows="2" maxlength="300"></textarea></div>
+        <div>
+          <label>Party details (headings and details, shown in this order)</label>
+          <p class="hint">To add a link, write [the words to click](https://the-web-address) in the details.</p>
+          <div id="eDetails"></div>
+          <button type="button" class="lnk" id="eAddBlock">+ Add a block</button>
+        </div>
+        <div><label for="eReg">Registry intro</label><textarea id="eReg" rows="3" maxlength="600"></textarea></div>
+        <div><label>Colours</label><div class="swatches" id="eSwatches"></div></div>
+        <div class="heropick">
+          <label for="eHeroFile">Cover photo (opening screen and top of the party page)</label>
+          <input type="file" id="eHeroFile" accept="image/*">
+          <img id="eHeroPrev" alt="Engagement page cover photo preview" hidden>
+          <button type="button" class="lnk" id="eHeroRm" hidden>Remove photo</button>
+        </div>
+        <div><button type="submit" id="eSave">Save engagement page</button> <span class="ok" id="eMsg" role="status"></span></div>
+      </form>
+    </section>
     <section data-tab="look">
       <h2>Appearance</h2>
       <div class="swatches" id="swatches"></div>
@@ -520,6 +545,8 @@ async function rpc(fn, args){
       return n;
     }
     if (fn==="admin_save_settings" || fn==="admin_save_content" || fn==="admin_save_images" || fn==="admin_save_faqs") return true;
+    if (fn==="get_engagement") return {title:"Levi & Shakira’s engagement party", event_date:"Saturday 1 May 2027", place:"Venue name, Suburb", welcome:"Come and celebrate with us.", registry_intro:"", details:[{title:"When",body:"4:00 pm"},{title:"Where",body:"Venue name"}], hero_photo:"", colors:{}};
+    if (fn==="admin_save_engagement" || fn==="admin_save_engagement_photo") return true;
     if (fn==="admin_codes") return [{code:"DEMO",kind:"guest"},{code:"GIFTS",kind:"registry"}];
     if (fn==="admin_set_code") return true;
     if (fn==="check_code"){
@@ -664,7 +691,7 @@ if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
 }
 
 /* ---- Tabs ---- */
-const TABS = ["rsvp","story","details","registry","guests","replies","regedit","codes","text","look"], ADMIN_TABS = ["guests","replies","regedit","codes","text","look"];
+const TABS = ["rsvp","story","details","registry","guests","replies","regedit","engagement","codes","text","look"], ADMIN_TABS = ["guests","replies","regedit","engagement","codes","text","look"];
 function showTab(name, push){
   if (!TABS.includes(name) || (ADMIN_TABS.includes(name) && !(GUEST && GUEST.is_admin))) name = "rsvp";
   if (GUEST && GUEST.registry_only) name = "registry";
@@ -721,7 +748,7 @@ async function loadAdmin(){
     td.append(linkBtn("Edit", () => editReply(r)), linkBtn("Delete", () => delReply(r)));
     if (r.listed === false) td.append(linkBtn("Match to guest", () => matchReply(r, td)));
   });
-  labelTable(t); loadAdminReg(); buildAppearance(); loadInvitees(); buildText(); loadCodes();
+  labelTable(t); loadAdminReg(); buildAppearance(); loadInvitees(); buildText(); loadCodes(); buildEngagement();
 }
 async function matchReply(r, td){
   let c = [];
@@ -907,6 +934,66 @@ $("bulkBtn").onclick = async () => {
   } catch(err){ $("bulkMsg").textContent = "Couldn’t add those. Please try again."; }
   finally { $("bulkBtn").disabled = false; }
 };
+
+/* ---- Engagement party page (admin) ---- */
+const ETHEME = [["bg","Background","#FBF7F4"],["text","Text","#2B2024"],["accent","Accent","#B5707F"],["band","Section band","#EFDDD8"],["button","Buttons","#2B2024"]];
+let E = {colors:{}, hero_photo:""}, eBuilt = false, eHeroPending;
+function eShowHero(src){ $("eHeroPrev").hidden = !src; if (src) $("eHeroPrev").src = src; $("eHeroRm").hidden = !src; }
+function renderEBlocks(arr){
+  const box = $("eDetails"); box.innerHTML = "";
+  arr.forEach((d, i) => {
+    const b = document.createElement("div"); b.className = "blk";
+    b.innerHTML = '<input class="bt" maxlength="80" placeholder="Heading (e.g. Dress code)" aria-label="Heading"><textarea class="bb" rows="3" maxlength="1000" placeholder="Details" aria-label="Details"></textarea><div></div>';
+    b.querySelector(".bt").value = d.title || ""; b.querySelector(".bb").value = d.body || "";
+    b.lastChild.append(linkBtn("Move up", () => moveEBlock(i, -1)), linkBtn("Move down", () => moveEBlock(i, 1)),
+      linkBtn("Remove", () => { const a = getEBlocks(); a.splice(i, 1); renderEBlocks(a); }));
+    box.append(b);
+  });
+}
+function getEBlocks(){ return [...document.querySelectorAll("#eDetails .blk")].map(b => ({title:b.querySelector(".bt").value.trim(), body:b.querySelector(".bb").value.trim()})); }
+function moveEBlock(i, d){ const a = getEBlocks(), j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; renderEBlocks(a); }
+$("eAddBlock").onclick = () => renderEBlocks([...getEBlocks(), {title:"", body:""}]);
+async function buildEngagement(){
+  if (eBuilt) return; eBuilt = true;
+  try { const r = await rpc("get_engagement", {p_code:CODE}); if (r) E = {...E, ...r, colors:r.colors || {}}; } catch(e){}
+  $("eTitle").value = E.title || ""; $("eDate").value = E.event_date || ""; $("ePlace").value = E.place || "";
+  $("eWelcome").value = E.welcome || ""; $("eReg").value = E.registry_intro || "";
+  renderEBlocks(E.details || []); eShowHero(E.hero_photo);
+  ETHEME.forEach(([k, label, def]) => {
+    const cur = HEX.test((E.colors || {})[k] || "") ? E.colors[k] : def;
+    const row = document.createElement("div"); row.className = "sw";
+    row.innerHTML = '<span></span><input type="color"><input type="text" maxlength="7" spellcheck="false">';
+    const [lab, pick, hex] = row.children;
+    lab.textContent = label; pick.setAttribute("aria-label", label + " colour"); hex.setAttribute("aria-label", label + " hex code");
+    pick.value = cur; hex.value = cur.toUpperCase();
+    const set = v => { E.colors = {...(E.colors || {}), [k]: v}; };
+    set(cur);
+    pick.oninput = () => { hex.value = pick.value.toUpperCase(); set(pick.value); };
+    hex.oninput = () => { let v = hex.value.trim(); if (v && v[0] !== "#") v = "#" + v; if (HEX.test(v)){ pick.value = v; set(v); } };
+    $("eSwatches").append(row);
+  });
+}
+$("eHeroFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const d = await resizeImage(f, 1600, 650000); eHeroPending = d; E.hero_photo = d; eShowHero(d); }
+  catch(err){ alert("Couldn’t use that image. Try a JPG or PNG."); }
+};
+$("eHeroRm").onclick = () => { eHeroPending = ""; E.hero_photo = ""; eShowHero(""); $("eHeroFile").value = ""; };
+$("eForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("eSave").disabled = true; $("eMsg").textContent = "";
+  try {
+    const ok = await rpc("admin_save_engagement", {p_code:CODE, p_title:$("eTitle").value.trim(), p_date:$("eDate").value.trim(), p_place:$("ePlace").value.trim(),
+      p_welcome:$("eWelcome").value.trim(), p_registry_intro:$("eReg").value.trim(), p_details:getEBlocks().filter(d => d.title || d.body), p_colors:E.colors || {}});
+    if (!ok) throw new Error();
+    if (eHeroPending !== undefined){
+      const ok2 = await rpc("admin_save_engagement_photo", {p_code:CODE, p_hero_photo:eHeroPending});
+      if (!ok2) throw new Error();
+      eHeroPending = undefined;
+    }
+    $("eMsg").textContent = "Saved. It’s live on the engagement page now.";
+  } catch(err){ $("eMsg").textContent = "Couldn’t save. If you changed the photo, try a smaller one."; }
+  finally { $("eSave").disabled = false; }
+});
 
 /* ---- Codes (admin) ---- */
 async function loadCodes(){
