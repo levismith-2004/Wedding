@@ -166,6 +166,7 @@ dialog.dlg h3{font-size:30px;margin-bottom:10px;overflow-wrap:anywhere}
 dialog.dlg p{margin-bottom:22px}
 .dlgbtn{display:grid;gap:6px;justify-items:center}
 .dlgbtn button:first-child{width:100%}
+body.regonly nav a:not([data-go="registry"]){display:none}
 footer{padding:48px;text-align:center;font-size:15px;opacity:.7}
 /* centred guest pages (admin tabs stay left-aligned) */
 nav b{text-align:center}
@@ -268,7 +269,7 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
     <b id="navNames"></b>
     <div>
       <a href="#rsvp" data-go="rsvp">RSVP</a><a href="#story" data-go="story">Our story</a><a href="#details" data-go="details">The day</a><a href="#registry" data-go="registry">Registry</a>
-      <a class="adm-tab" href="#guests" data-go="guests" hidden>Guests</a><a class="adm-tab" href="#replies" data-go="replies" hidden>Replies</a><a class="adm-tab" href="#regedit" data-go="regedit" hidden>Edit registry</a><a class="adm-tab" href="#text" data-go="text" hidden>Edit text</a><a class="adm-tab" href="#look" data-go="look" hidden>Appearance</a>
+      <a class="adm-tab" href="#guests" data-go="guests" hidden>Guests</a><a class="adm-tab" href="#replies" data-go="replies" hidden>Replies</a><a class="adm-tab" href="#regedit" data-go="regedit" hidden>Edit registry</a><a class="adm-tab" href="#codes" data-go="codes" hidden>Codes</a><a class="adm-tab" href="#text" data-go="text" hidden>Edit text</a><a class="adm-tab" href="#look" data-go="look" hidden>Appearance</a>
     </div>
   </nav>
   <div class="banner" data-tab="rsvp">
@@ -396,6 +397,16 @@ body.in::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-a
         <div><button type="submit" id="tSave">Save text</button> <span class="ok" id="tMsg" role="status"></span></div>
       </form>
     </section>
+    <section data-tab="codes">
+      <h2>Codes</h2>
+      <div class="txt">
+        <div><label for="cGuest">Guest code (opens the whole site: RSVP, story, the day, registry)</label><input id="cGuest" maxlength="40" autocapitalize="characters" autocorrect="off" spellcheck="false"></div>
+        <div><button type="button" id="cGuestSave">Save guest code</button> <span class="ok" id="cGuestMsg" role="status"></span></div>
+        <div><label for="cReg">Registry-only code (opens just the registry, nothing else)</label><input id="cReg" maxlength="40" autocapitalize="characters" autocorrect="off" spellcheck="false"><p class="hint">Leave it blank and save to switch this code off.</p></div>
+        <div><button type="button" id="cRegSave">Save registry code</button> <span class="ok" id="cRegMsg" role="status"></span></div>
+        <p class="hint">Codes can be 4 to 40 letters, numbers or dashes. Changing the guest code stops the old one working straight away.</p>
+      </div>
+    </section>
     <section data-tab="look">
       <h2>Appearance</h2>
       <div class="swatches" id="swatches"></div>
@@ -509,10 +520,13 @@ async function rpc(fn, args){
       return n;
     }
     if (fn==="admin_save_settings" || fn==="admin_save_content" || fn==="admin_save_images" || fn==="admin_save_faqs") return true;
+    if (fn==="admin_codes") return [{code:"DEMO",kind:"guest"},{code:"GIFTS",kind:"registry"}];
+    if (fn==="admin_set_code") return true;
     if (fn==="check_code"){
       const c = args.p_code.trim().toUpperCase();
       if (c==="DEMO") return {is_admin:false};
       if (c==="ADMIN") return {is_admin:true};
+      if (c==="GIFTS") return {is_admin:false, registry_only:true};
       return null;
     }
     if (fn==="admin_rsvps") return demoDB.rsvps.map(r=>({...r, listed:!!r.invitee_id}));
@@ -650,9 +664,10 @@ if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
 }
 
 /* ---- Tabs ---- */
-const TABS = ["rsvp","story","details","registry","guests","replies","regedit","text","look"], ADMIN_TABS = ["guests","replies","regedit","text","look"];
+const TABS = ["rsvp","story","details","registry","guests","replies","regedit","codes","text","look"], ADMIN_TABS = ["guests","replies","regedit","codes","text","look"];
 function showTab(name, push){
   if (!TABS.includes(name) || (ADMIN_TABS.includes(name) && !(GUEST && GUEST.is_admin))) name = "rsvp";
+  if (GUEST && GUEST.registry_only) name = "registry";
   document.querySelectorAll("[data-tab]").forEach(el => el.classList.toggle("on", el.dataset.tab === name));
   document.querySelectorAll("nav a[data-go]").forEach(a => {
     const on = a.dataset.go === name; a.classList.toggle("on", on);
@@ -680,7 +695,9 @@ $("codeForm").addEventListener("submit", async e => {
 
 async function unlock(){
   await fetchSettings(CODE); applyGate(); applySite();
-  $("gate").hidden = true; $("site").hidden = false; document.body.classList.add("in"); showTab(location.hash.slice(1), false);
+  $("gate").hidden = true; $("site").hidden = false; document.body.classList.add("in");
+  if (GUEST.registry_only){ document.body.classList.add("regonly"); document.querySelector(".banner").dataset.tab = "registry"; $("welcome").textContent = "Thank you for thinking of us."; }
+  showTab(location.hash.slice(1), false);
   loadRegistry();
   if (GUEST.is_admin) loadAdmin();
 }
@@ -704,7 +721,7 @@ async function loadAdmin(){
     td.append(linkBtn("Edit", () => editReply(r)), linkBtn("Delete", () => delReply(r)));
     if (r.listed === false) td.append(linkBtn("Match to guest", () => matchReply(r, td)));
   });
-  labelTable(t); loadAdminReg(); buildAppearance(); loadInvitees(); buildText();
+  labelTable(t); loadAdminReg(); buildAppearance(); loadInvitees(); buildText(); loadCodes();
 }
 async function matchReply(r, td){
   let c = [];
@@ -890,6 +907,26 @@ $("bulkBtn").onclick = async () => {
   } catch(err){ $("bulkMsg").textContent = "Couldn’t add those. Please try again."; }
   finally { $("bulkBtn").disabled = false; }
 };
+
+/* ---- Codes (admin) ---- */
+async function loadCodes(){
+  let rows = []; try { rows = await rpc("admin_codes", {p_code:CODE}); } catch(e){}
+  $("cGuest").value = (rows.find(r => r.kind === "guest") || {}).code || "";
+  $("cReg").value = (rows.find(r => r.kind === "registry") || {}).code || "";
+}
+async function saveCode(kind, inputId, msgId, btnId){
+  const v = $(inputId).value.trim().toUpperCase(), msg = $(msgId), btn = $(btnId);
+  msg.textContent = ""; btn.disabled = true;
+  try {
+    const ok = await rpc("admin_set_code", {p_code:CODE, p_kind:kind, p_new:v});
+    if (!ok) throw new Error();
+    $(inputId).value = v;
+    msg.textContent = v === "" ? "Switched off." : kind === "guest" ? "Saved. The old guest code no longer works." : "Saved.";
+  } catch(e){ msg.textContent = "Couldn’t save. Use 4 to 40 letters, numbers or dashes, different from your other codes."; }
+  finally { btn.disabled = false; }
+}
+$("cGuestSave").onclick = () => saveCode("guest", "cGuest", "cGuestMsg", "cGuestSave");
+$("cRegSave").onclick = () => saveCode("registry", "cReg", "cRegMsg", "cRegSave");
 
 /* ---- Edit text (admin) ---- */
 let textBuilt = false;
