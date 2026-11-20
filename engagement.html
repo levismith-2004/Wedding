@@ -252,6 +252,8 @@ body:not(.hero) #site{padding-top:calc(var(--navh,0px) + 20px)}
 body.hero #story{padding-top:calc(var(--navh,0px) + clamp(40px,7vw,80px))}
 #site>section:not(#story){width:100%;max-width:1180px;margin:0 auto}
 #site>footer{margin-top:auto}
+#site>.band[data-tab="rsvp"],#site>#story{flex:1 0 auto}
+#adminWrap:has([data-tab].on){flex:1 0 auto}
 body.hero:not(.scrolled) nav{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;border-bottom-color:transparent;color:var(--herotext,#fff);text-shadow:0 1px 14px rgba(0,0,0,.35)}
 nav a{text-transform:uppercase;letter-spacing:.14em;font-size:12.5px}
 nav b{letter-spacing:.02em}
