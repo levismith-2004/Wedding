@@ -253,6 +253,9 @@ body.in.hero:not(.scrolled)::before{background:linear-gradient(rgba(0,0,0,.5),rg
 /* polish: header over photos, page backgrounds, footer at the bottom */
 #site{min-height:100svh;display:flex;flex-direction:column;padding-top:var(--navh,0px)}
 body.hero #site{padding-top:0}
+body:not(.hero) #site{padding-top:calc(var(--navh,0px) + 20px)}
+.banner{padding-top:calc(var(--navh,0px) + 28px)}
+body.hero #story{padding-top:calc(var(--navh,0px) + clamp(40px,7vw,80px))}
 #site>section:not(#story){width:100%;max-width:1180px;margin:0 auto}
 #site>footer{margin-top:auto}
 body.hero:not(.scrolled) nav{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;border-bottom-color:transparent;color:var(--herotext,#fff);text-shadow:0 1px 14px rgba(0,0,0,.35)}
